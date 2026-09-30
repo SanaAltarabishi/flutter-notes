@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:freenotes_app/features/notes/presentation/canvas/widgets/canvas_area.dart';
 import '../../../../core/constants/app_constants.dart';
 import 'canvas_provider.dart';
-import 'widgets/drawing_canvas.dart';
+import 'canvas_state.dart';
+import 'widgets/canvas_app_bar.dart';
+import 'widgets/text_editor_dialog.dart';
 import 'widgets/toolbar.dart';
 import 'widgets/canvas_error_banner.dart';
-import 'widgets/recognized_text_banner.dart';
 import 'widgets/clear_canvas_dialog.dart';
 
 class CanvasPage extends ConsumerStatefulWidget {
@@ -22,91 +24,107 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
   @override
   Widget build(BuildContext context) {
     final canvasState = ref.watch(canvasProvider(widget.pageId));
-    final canvasNotifier = ref.read(canvasProvider(widget.pageId).notifier);
+    final notifier = ref.read(canvasProvider(widget.pageId).notifier);
+    final isHighlighter = canvasState.currentTool == CanvasTool.highlighter;
+    final selectedText = canvasState.selectedTextBlock;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('FreeNotes'),
-        actions: [
-          PopupMenuButton<String>(
-            initialValue: _selectedLanguage,
-            onSelected: (lang) => setState(() => _selectedLanguage = lang),
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                  value: AppConstants.langArabic, child: Text('العربية')),
-              const PopupMenuItem(
-                  value: AppConstants.langEnglish, child: Text('English')),
-            ],
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Center(
-                child: Text(
-                    _selectedLanguage == AppConstants.langArabic ? 'AR' : 'EN'),
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Saved (demo)')),
-              );
-            },
-          ),
-        ],
+      appBar: CanvasAppBar(
+        selectedLanguage: _selectedLanguage,
+        onLanguageChanged: (language) {
+          setState(() => _selectedLanguage = language);
+        },
+         onSave: notifier.saveCurrentDrawing, //todo : it's not actually used
       ),
       body: Column(
         children: [
           CanvasToolbar(
             currentTool: canvasState.currentTool,
-            currentColor: canvasState.currentColor,
-            strokeWidth: canvasState.strokeWidth,
-            canUndo: canvasState.strokes.isNotEmpty,
-            canRedo: canvasState.redoStack.isNotEmpty,
+            activeColor: selectedText != null
+                ? Color(selectedText.colorValue)
+                : (isHighlighter
+                    ? canvasState.highlighterColor
+                    : canvasState.currentColor),
+            sliderValue: selectedText != null
+                ? selectedText.fontSize
+                : (isHighlighter
+                    ? canvasState.highlighterWidth
+                    : canvasState.strokeWidth),
+            sliderMin: selectedText != null ? 10 : 1,
+            sliderMax: selectedText != null ? 48 : (isHighlighter ? 30 : 10),
+            canUndo: canvasState.canUndo,
+            canRedo: canvasState.canRedo,
             isRecognizing: canvasState.isRecognizing,
-            onUndo: canvasNotifier.undo,
-            onRedo: canvasNotifier.redo,
+            hasSelection: canvasState.hasSelection,
+            onDeleteSelected: notifier.deleteSelection,
+            onUndo: notifier.undo,
+            onRedo: notifier.redo,
             onClear: () => showClearCanvasDialog(
               context,
-              onConfirm: canvasNotifier.clear,
+              onConfirm: notifier.clear,
             ),
-            onConvert: () =>
-                canvasNotifier.convertToText(language: _selectedLanguage),
-            onColorChanged: canvasNotifier.setColor,
-            onStrokeWidthChanged: canvasNotifier.setStrokeWidth,
-            onToolChanged: canvasNotifier.setTool,
+            onConvert: canvasState.hasStrokeSelection
+                ? () => notifier.convertToText(language: _selectedLanguage)
+                : null,
+            onAddText: () => _addTextAtCenter(notifier, canvasState),
+            onEditText: selectedText == null
+                ? null
+                : () => showTextDialog(
+                      context: context,
+                      title: 'Edit text',
+                      initial: selectedText.text,
+                      confirmLabel: 'Save',
+                      onSubmit: notifier.editSelectedText,
+                    ),
+            onColorChanged: notifier.setColor, //todo :
+            onSliderChanged: selectedText != null
+                ? notifier.previewSelectedTextFontSize
+                : (isHighlighter
+                    ? notifier.setHighlighterWidth
+                    : notifier.setStrokeWidth),
+            onSliderChangeEnd: selectedText != null
+                ? (_) => notifier.commitSelectedTextFontSize()
+                : null,
+            onToolChanged: notifier.setTool,
           ),
-          if (canvasState.recognizedText != null)
-            RecognizedTextBanner(
-              text: canvasState.recognizedText!,
-              textDirection: _selectedLanguage == AppConstants.langArabic
-                  ? TextDirection.rtl
-                  : TextDirection.ltr,
-              onDismiss: canvasNotifier.clearRecognizedText,
-            ),
           if (canvasState.error != null)
             CanvasErrorBanner(
-              error: canvasState
-                  .error!, // Failure now, not String — banner reads .message itself
-              onDismiss: canvasNotifier.dismissError,
+              error: canvasState.error!,
+              onDismiss: notifier.dismissError,
             ),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  canvasNotifier.setCanvasSize(constraints.biggest);
-                });
-                return DrawingCanvas(
-                  strokes: canvasState.strokes,
-                  onStart: canvasNotifier.startStroke,
-                  onUpdate: canvasNotifier.addPoint,
-                  onEnd: canvasNotifier.endStroke,
+            child: CanvasArea(
+              state: canvasState,
+              notifier: notifier,
+              selectedLanguage: _selectedLanguage,
+              onEditPendingText: () {
+                showTextDialog(
+                  context: context,
+                  title: 'Fix recognized text',
+                  initial: canvasState.pendingRecognizedText!,
+                  confirmLabel: 'Update',
+                  onSubmit: notifier.updatePendingText,
                 );
               },
             ),
-          ),
+          )
         ],
       ),
+    );
+  }
+
+  void _addTextAtCenter(CanvasNotifier notifier, CanvasState state) {
+    final size = state.canvasSize;
+    final center = size.width > 0 && size.height > 0
+        ? Offset(size.width / 2 - 110, size.height / 2 - 20)
+        : const Offset(60, 60);
+
+    showTextDialog(
+      context: context,
+      title: 'Add text',
+      initial: '',
+      confirmLabel: 'Add',
+      onSubmit: (text) => notifier.addTextBlock(text, center),
     );
   }
 }

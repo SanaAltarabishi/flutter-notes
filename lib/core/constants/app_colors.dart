@@ -17,8 +17,9 @@ abstract final class AppColors {
   // Borders
   static const Color border = Color(0xFFE2BDD5);
   // Error
-  static const Color error = Color(0xFFBA3D58);
-  static const Color errorLight = Color(0xFFFBE5EA);
+  static Color error = Colors.red.shade800;
+  static Color errorLight = Colors.red.shade50;
+
   // Common
   static const Color white = Colors.white;
   static const Color black = Colors.black;
@@ -58,4 +59,5 @@ abstract final class AppColors {
   /// Text shadow on the book title.
   static const Color bookTitleShadow = Color(0x61000000);
 //_________________________________________________________
+static  Color bookPageBackground = Colors.grey.shade200;
 }

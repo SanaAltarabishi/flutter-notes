@@ -25,28 +25,13 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 8),
             const Text('Handwriting note-taking app'),
             const SizedBox(height: 48),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FilledButton.icon(
-                  onPressed: () =>{},
-                  //  Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(builder: (_) => const CanvasPage(pageId: ,)),
-                  // ),
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Quick Note'),
-                ),
-                const SizedBox(width: 30),
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const BooksPage()),
-                  ),
-                  icon: const Icon(Icons.book),
-                  label: const Text('My Books'),
-                ),
-              ],
+            FilledButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BooksPage()),
+              ),
+              icon: const Icon(Icons.book),
+              label: const Text('My Books'),
             ),
           ],
         ),

@@ -2,15 +2,15 @@ import 'dart:convert';
 import '../../domain/entities/content_block.dart';
 import 'stroke_model.dart';
 
+enum ShapeType { rectangle, oval, line, arrow }
+
+
 class ContentBlockModel {
   final String id;
   final String pageId;
   final String type;
   final int orderIndex;
-  final double x;
-  final double y;
-  final double width;
-  final double height;
+  final double x,y,width,height;
   final String data; // JSON string
   final int createdAtMillis;
   final int updatedAtMillis;

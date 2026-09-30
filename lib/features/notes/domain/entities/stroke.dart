@@ -1,37 +1,38 @@
 import 'package:equatable/equatable.dart';
-import 'package:flutter/material.dart';
+import 'package:freenotes_app/features/notes/domain/entities/stroke_point.dart';
 
 class Stroke extends Equatable {
   final String id;
-  final List<Offset> points;
-  final Color color;
+  final List<StrokePoint> points;
+  //final Color color;
+  final int colorValue;
   final double strokeWidth;
   final DateTime createdAt;
 
   const Stroke({
     required this.id,
     required this.points,
-    required this.color,
+    required this.colorValue,
     this.strokeWidth = 2.0,
     required this.createdAt,
   });
 
   Stroke copyWith({
     String? id,
-    List<Offset>? points,
-    Color? color,
+    List<StrokePoint>? points,
+    int? colorValue,
     double? strokeWidth,
     DateTime? createdAt,
   }) {
     return Stroke(
       id: id ?? this.id,
       points: points ?? this.points,
-      color: color ?? this.color,
+      colorValue: colorValue ?? this.colorValue,
       strokeWidth: strokeWidth ?? this.strokeWidth,
       createdAt: createdAt ?? this.createdAt,
     );
   }
 
   @override
-  List<Object?> get props => [id, points, color, strokeWidth, createdAt];
+  List<Object?> get props => [id, points, colorValue, strokeWidth, createdAt];
 }

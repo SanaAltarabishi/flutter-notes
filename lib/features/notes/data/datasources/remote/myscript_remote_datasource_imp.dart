@@ -38,8 +38,8 @@ class MyScriptRemoteDataSourceImpl implements MyScriptRemoteDataSource {
   ) {
     final strokesData = strokes.map((stroke) {
       return {
-        'x': stroke.points.map((p) => p.dx.toInt()).toList(),
-        'y': stroke.points.map((p) => p.dy.toInt()).toList(),
+        'x': stroke.points.map((p) => p.x.toInt()).toList(),
+        'y': stroke.points.map((p) => p.y.toInt()).toList(),
         't': List.generate(stroke.points.length, (i) => i * 10),
         'pointerType': 'PEN', //'TOUCH'
       };

@@ -4,76 +4,131 @@ import '../../../../core/errors/failures.dart';
 import '../../domain/entities/content_block.dart';
 import '../../domain/entities/stroke.dart';
 
-enum CanvasTool { pen, eraser, lasso }
+enum CanvasTool { pen, eraser, lasso, highlighter, magic }
 
 //State = Snapshot of everything the UI currently needs to know.
 class CanvasState {
   final List<Stroke> strokes;
-  final List<Stroke> redoStack;
   final Color currentColor;
+  final Color highlighterColor;
   final double strokeWidth;
+  final double highlighterWidth;
   final CanvasTool currentTool;
   final bool isRecognizing;
-  final String? recognizedText;
-  // final String? error;
   final Failure? error;
   final Size canvasSize;
   final List<ContentBlock> blocks;
 
+  final bool canUndo;
+  final bool canRedo;
+
+  final String? pendingRecognizedText;
+  final Rect? pendingRecognitionBounds;
+  final Set<String> pendingRecognitionStrokeIds;
+
+  // تحديد متعدد: بلوكات محفوظة + strokes حيّة بنفس الوقت
+  final Set<String> selectedBlockIds;
+  final Set<String> selectedStrokeIds;
+  final Rect? marqueeRect;
+
   const CanvasState({
     this.error,
     this.strokes = const [],
-    this.redoStack = const [],
     this.currentColor = AppColors.black,
+    this.highlighterColor = Colors.yellow,
     this.strokeWidth = 3.0,
+    this.highlighterWidth = 12.0,
     this.currentTool = CanvasTool.pen,
     this.isRecognizing = false,
-    this.recognizedText,
-    //  this.error,
     this.canvasSize = Size.zero,
     this.blocks = const [],
+    this.canUndo = false,
+    this.canRedo = false,
+    this.pendingRecognizedText,
+    this.pendingRecognitionBounds,
+    this.pendingRecognitionStrokeIds = const {},
+    this.selectedBlockIds = const {},
+    this.selectedStrokeIds = const {},
+    this.marqueeRect,
   });
-//copyWith gives us an easy way to create a new version of that state with only the things we want to change.
+
   CanvasState copyWith({
     List<Stroke>? strokes,
-    List<Stroke>? redoStack,
     Color? currentColor,
+    Color? highlighterColor,
     double? strokeWidth,
+    double? highlighterWidth,
     CanvasTool? currentTool,
     bool? isRecognizing,
-    String? recognizedText,
-    //  String? error,
     Size? canvasSize,
     List<ContentBlock>? blocks,
     Failure? error,
     bool clearError = false,
+    bool? canUndo,
+    bool? canRedo,
+    String? pendingRecognizedText,
+    Rect? pendingRecognitionBounds,
+    Set<String>? pendingRecognitionStrokeIds,
+    bool clearPendingRecognition = false,
+    Set<String>? selectedBlockIds,
+    bool clearSelectedBlockIds = false,
+    Set<String>? selectedStrokeIds,
+    bool clearSelectedStrokeIds = false,
+    Rect? marqueeRect,
+    bool clearMarqueeRect = false,
   }) {
     return CanvasState(
       strokes: strokes ?? this.strokes,
-      redoStack: redoStack ?? this.redoStack,
       currentColor: currentColor ?? this.currentColor,
+      highlighterColor: highlighterColor ?? this.highlighterColor,
       strokeWidth: strokeWidth ?? this.strokeWidth,
+      highlighterWidth: highlighterWidth ?? this.highlighterWidth,
       currentTool: currentTool ?? this.currentTool,
       isRecognizing: isRecognizing ?? this.isRecognizing,
-      recognizedText: recognizedText ?? this.recognizedText,
-      //   error: error,
       canvasSize: canvasSize ?? this.canvasSize,
       blocks: blocks ?? this.blocks,
       error: clearError ? null : (error ?? this.error),
+      canUndo: canUndo ?? this.canUndo,
+      canRedo: canRedo ?? this.canRedo,
+      pendingRecognizedText: clearPendingRecognition
+          ? null
+          : (pendingRecognizedText ?? this.pendingRecognizedText),
+      pendingRecognitionBounds: clearPendingRecognition
+          ? null
+          : (pendingRecognitionBounds ?? this.pendingRecognitionBounds),
+      pendingRecognitionStrokeIds: clearPendingRecognition
+          ? const {}
+          : (pendingRecognitionStrokeIds ?? this.pendingRecognitionStrokeIds),
+      selectedBlockIds: clearSelectedBlockIds
+          ? const {}
+          : (selectedBlockIds ?? this.selectedBlockIds),
+      selectedStrokeIds: clearSelectedStrokeIds
+          ? const {}
+          : (selectedStrokeIds ?? this.selectedStrokeIds),
+      marqueeRect: clearMarqueeRect ? null : (marqueeRect ?? this.marqueeRect),
     );
   }
+
+//___________________________________________________
+  TextBlock? get selectedTextBlock {
+    if (selectedBlockIds.length != 1 || selectedStrokeIds.isNotEmpty) {
+      return null;
+    }
+
+    final selectedId = selectedBlockIds.first;
+
+    for (final block in blocks) {
+      if (block.id == selectedId && block is TextBlock) {
+        return block;
+      }
+    }
+
+    return null;
+  }
+
+//___________________________________________________
+  bool get hasSelection =>
+      selectedBlockIds.isNotEmpty || selectedStrokeIds.isNotEmpty;
+//___________________________________________________
+  bool get hasStrokeSelection => selectedStrokeIds.isNotEmpty;
 }
-/*
-CanvasState
-    │
-    ├── strokes       → what did I draw?
-    ├── redoStack     → what can I redo?
-    ├── currentColor  → what color am I using?
-    ├── strokeWidth   → how thick is the pen?
-    ├── currentTool   → what tool is selected?
-    ├── isRecognizing → is recognition running?
-    ├── recognizedText→ what was recognized?
-    ├── error         → did something fail?
-    ├── canvasSize    → how big is the canvas?
-    └── blocks        → what blocks are on the page?
-*/

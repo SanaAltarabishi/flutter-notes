@@ -8,6 +8,7 @@ import '../../data/datasources/remote/myscript_remote_datasource_imp.dart';
 import '../../data/repositories/notes_repository_impl.dart';
 import '../../domain/repositories/handwriting_recognition_repository.dart';
 import '../../domain/repositories/notes_repository.dart';
+import '../../domain/usecases/blocks/delete_block.dart';
 import '../../domain/usecases/blocks/get_blocks.dart';
 import '../../domain/usecases/blocks/save_block.dart';
 import '../../domain/usecases/books/delete_book.dart';
@@ -16,6 +17,7 @@ import '../../domain/usecases/handwriting/convert_handwriting.dart';
 import '../../domain/usecases/books/create_book.dart';
 import '../../domain/usecases/pages/create_page.dart';
 import '../../domain/usecases/books/get_books.dart';
+import '../../domain/usecases/pages/delete_page.dart';
 import '../../domain/usecases/pages/get_pages.dart';
 
 //CORE:
@@ -81,6 +83,11 @@ final getPagesUseCaseProvider = Provider<GetPages>((ref) {
 final createPageUseCaseProvider = Provider<CreatePage>((ref) {
   return CreatePage(ref.watch(notesRepositoryProvider));
 });
+
+final deletePageUseCaseProvider = Provider<DeletePage>((ref) {
+  return DeletePage(ref.watch(notesRepositoryProvider));
+});
+
 //_____________________________
 // ? blocks :
 final saveBlockUseCaseProvider = Provider<SaveBlock>((ref) {
@@ -90,6 +97,14 @@ final saveBlockUseCaseProvider = Provider<SaveBlock>((ref) {
 final getBlocksUseCaseProvider = Provider<GetBlocks>((ref) {
   return GetBlocks(ref.watch(notesRepositoryProvider));
 });
+final deleteBlockUseCaseProvider = Provider<DeleteBlock>((ref) {
+  return DeleteBlock(ref.watch(notesRepositoryProvider));
+});
+
+// final reorderBlocksUseCaseProvider = Provider<ReorderBlocks>((ref) {
+//   return ReorderBlocks(ref.watch(notesRepositoryProvider));
+// });
+
 //_____________________________
 //? handwriting:
 final convertHandwritingUseCaseProvider = Provider<ConvertHandwriting>((ref) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:freenotes_app/core/constants/app_colors.dart';
 import '../../../../../core/errors/failures.dart';
-
+//✅
 class CanvasErrorBanner extends StatelessWidget {
   final Failure error;
   final VoidCallback onDismiss;
@@ -16,15 +17,15 @@ class CanvasErrorBanner extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      color: Colors.red.shade50,
+      color: AppColors.errorLight,
       child: Row(
         children: [
-          Icon(Icons.error_outline_rounded, size: 20, color: Colors.red.shade800),
+          Icon(Icons.error_outline_rounded, size: 20, color: AppColors.error),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               error.message,
-              style: TextStyle(color: Colors.red.shade800),
+              style: TextStyle(color: AppColors.error),
             ),
           ),
           IconButton(
