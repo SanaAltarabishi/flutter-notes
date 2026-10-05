@@ -73,6 +73,15 @@ class _CanvasPainter extends CustomPainter {
     _drawStrokes(canvas, strokes);
 
     for (final block in blocks) {
+      if (block is! InkBlock) continue;
+      final selected = block.strokes
+          .where((stroke) => selectedStrokeIds.contains(stroke.id))
+          .toList();
+      final bounds = _strokesBounds(selected);
+      if (bounds != null) _drawSelectionOutline(canvas, bounds);
+    }
+
+    for (final block in blocks) {
       if (selectedBlockIds.contains(block.id)) {
         _drawSelectionOutline(canvas, _blockBounds(block));
       }
@@ -104,25 +113,82 @@ class _CanvasPainter extends CustomPainter {
     }
   }
 
-  void _drawStrokes(Canvas canvas, List<Stroke> list) {
-    for (final stroke in list) {
-      if (stroke.points.length < 2) continue;
+  // void _drawStrokes(Canvas canvas, List<Stroke> list) {
+  //   for (final stroke in list) {
+  //     if (stroke.points.length < 2) continue;
 
-      final paint = Paint()
-        ..color = Color(stroke.colorValue)
-        ..strokeWidth = stroke.strokeWidth
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..style = PaintingStyle.stroke;
+  //     final paint = Paint()
+  //       ..color = Color(stroke.colorValue)
+  //       ..strokeWidth = stroke.strokeWidth
+  //       ..strokeCap = StrokeCap.round
+  //       ..strokeJoin = StrokeJoin.round
+  //       ..style = PaintingStyle.stroke;
 
-      final path = Path()..moveTo(stroke.points.first.x, stroke.points.first.y);
-      for (final p in stroke.points.skip(1)) {
-        path.lineTo(p.x, p.y);
-      }
+  //     final path = Path()..moveTo(stroke.points.first.x, stroke.points.first.y);
+  //     for (final p in stroke.points.skip(1)) {
+  //       path.lineTo(p.x, p.y);
+  //     }
+  //     canvas.drawPath(path, paint);
+  //   }
+  // }
+void _drawStrokes(Canvas canvas, List<Stroke> list) {
+  for (final stroke in list) {
+    if (stroke.points.length < 2) continue;
+
+    final paint = Paint()
+      ..color = Color(stroke.colorValue)
+      ..strokeWidth = stroke.strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    final points = stroke.points
+        .map((p) => Offset(p.x, p.y))
+        .toList();
+
+    final path = Path();
+
+    path.moveTo(points.first.dx, points.first.dy);
+
+    if (points.length == 2) {
+      path.lineTo(points.last.dx, points.last.dy);
       canvas.drawPath(path, paint);
+      continue;
     }
-  }
 
+    // Smooth the stroke using quadratic Bézier curves.
+    for (int i = 1; i < points.length - 1; i++) {
+      final current = points[i];
+      final next = points[i + 1];
+
+      final midpoint = Offset(
+        (current.dx + next.dx) / 2,
+        (current.dy + next.dy) / 2,
+      );
+
+      path.quadraticBezierTo(
+        current.dx,// يتحكم في الانحناء
+        current.dy,
+        midpoint.dx,//اين ينتهي الانحناء
+        midpoint.dy,
+      );
+    }
+
+    // Finish at the last point.
+    final last = points.last;
+    final previous = points[points.length - 2];
+
+    path.quadraticBezierTo(
+      previous.dx,
+      previous.dy,
+      last.dx,
+      last.dy,
+    );
+
+    canvas.drawPath(path, paint);
+  }
+}
   void _drawText(Canvas canvas, TextBlock block) {
     _textPainterFor(block).paint(canvas, Offset(block.x, block.y));
   }

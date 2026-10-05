@@ -1,14 +1,16 @@
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/material.dart';
 
-class BookColorPicker extends StatelessWidget {
+class ColorPicker extends StatelessWidget {
   final Color selectedColor;
   final ValueChanged<Color> onColorSelected;
+  final bool compact;
 
-  const BookColorPicker({
+  const ColorPicker({
     super.key,
     required this.selectedColor,
     required this.onColorSelected,
+    this.compact = false,
   });
 
   Future<void> _pickColor(BuildContext context) async {
@@ -34,6 +36,25 @@ class BookColorPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (compact) {
+      return IconButton(
+        onPressed: () => _pickColor(context),
+        icon: const Icon(Icons.add),
+        tooltip: 'Choose color',
+        style: IconButton.styleFrom(
+          fixedSize: const Size(32, 32),
+          padding: EdgeInsets.zero,
+          shape: const CircleBorder(),
+          backgroundColor: selectedColor,
+          foregroundColor:
+              ThemeData.estimateBrightnessForColor(selectedColor) ==
+                      Brightness.dark
+                  ? Colors.white
+                  : Colors.black,
+        ),
+      );
+    }
+
     return InkWell(
       onTap: () => _pickColor(context),
       borderRadius: BorderRadius.circular(16),

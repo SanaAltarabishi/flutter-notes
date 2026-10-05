@@ -17,8 +17,7 @@ import 'utils/stroke_eraser.dart';
 
 final canvasProvider =
     NotifierProvider.family<CanvasNotifier, CanvasState, String>(
-  CanvasNotifier.new,
-);
+        CanvasNotifier.new);
 
 class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   late final String pageId;
@@ -26,282 +25,227 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   static const double _defaultFontSize = 18;
   static const String _defaultFont = 'Roboto';
 
-  final CanvasHistory _history = CanvasHistory(); //todo :
+  final CanvasHistory _history = CanvasHistory();
 
   Offset? _lastDragPoint;
   Offset? _marqueeStart;
   bool _isDraggingSelection = false;
   bool _dragMoved = false;
   bool _dragSnapshotTaken = false;
-//_______________________________________________
+
   @override
   CanvasState build(String arg) {
     pageId = arg;
-
     _loadBlocks();
-
     return const CanvasState();
   }
 
-//_______________________________________________
   Future<void> _loadBlocks() async {
     final getBlocks = ref.read(getBlocksUseCaseProvider);
-
-    final result = await getBlocks(
-      GetBlocksParams(pageId),
-    );
+    final result = await getBlocks(GetBlocksParams(pageId));
 
     result.fold(
-      (failure) {
-        state = state.copyWith(
-          error: failure,
-        );
-      },
-      (blocks) {
-        state = state.copyWith(
-          blocks: blocks,
-          clearError: true,
-        );
-      },
+      (failure) => state = state.copyWith(error: failure),
+      (blocks) => state = state.copyWith(blocks: blocks, clearError: true),
     );
   }
 
-//_______________________________________________
-  void setCanvasSize(Size size) {
-    state = state.copyWith(
-      canvasSize: size,
-    );
-  }
+  void setCanvasSize(Size size) => state = state.copyWith(canvasSize: size);
 
-//_______________________________________________
-//undo\ redo :
+  // ============================================================
+  // Undo / Redo
+  // ============================================================
+
   void _saveHistory() {
-    _history.save(state.strokes);
-
-    state = state.copyWith(
-      canUndo: _history.canUndo,
-      canRedo: _history.canRedo,
-    );
+    _history.save(strokes: state.strokes, blocks: state.blocks);
+    state =
+        state.copyWith(canUndo: _history.canUndo, canRedo: _history.canRedo);
   }
 
-  void undo() {
-    final previous = _history.undo(state.strokes);
+  void _resetHistory() {
+    _history.clear();
+    state = state.copyWith(canUndo: false, canRedo: false);
+  }
 
+  Future<void> undo() async {
+    final previous = _history.undo(
+      currentStrokes: state.strokes,
+      currentBlocks: state.blocks,
+    );
     if (previous == null) return;
-
+    final currentBlocks = state.blocks;
     state = state.copyWith(
-      strokes: previous,
+      strokes: previous.strokes,
+      blocks: previous.blocks,
       canUndo: _history.canUndo,
       canRedo: _history.canRedo,
     );
+    await _syncBlocks(currentBlocks, previous.blocks);
   }
 
-  void redo() {
-    final next = _history.redo(state.strokes);
-
+  Future<void> redo() async {
+    final next = _history.redo(
+      currentStrokes: state.strokes,
+      currentBlocks: state.blocks,
+    );
     if (next == null) return;
-
+    final currentBlocks = state.blocks;
     state = state.copyWith(
-      strokes: next,
+      strokes: next.strokes,
+      blocks: next.blocks,
       canUndo: _history.canUndo,
       canRedo: _history.canRedo,
     );
+    await _syncBlocks(currentBlocks, next.blocks);
   }
 
-//_______________________________________________
-//drawing :
+  Future<void> _syncBlocks(
+      List<ContentBlock> from, List<ContentBlock> to) async {
+    final fromById = {for (final block in from) block.id: block};
+    final toById = {for (final block in to) block.id: block};
+    final deleteBlock = ref.read(deleteBlockUseCaseProvider);
+    final saveBlock = ref.read(saveBlockUseCaseProvider);
+
+    for (final id in fromById.keys) {
+      if (toById.containsKey(id)) continue;
+      await deleteBlock(DeleteBlockParams(id));
+    }
+    for (final block in toById.values) {
+      if (fromById[block.id] == block) continue;
+      await saveBlock(SaveBlockParams(block));
+    }
+  }
+
+  // ============================================================
+  // رسم: قلم / تظليل
+  // ============================================================
+
   void startStroke(Offset point) {
     _saveHistory();
 
     final isHighlighter = state.currentTool == CanvasTool.highlighter;
-
     final baseColor =
         isHighlighter ? state.highlighterColor : state.currentColor;
-
     final color = isHighlighter ? baseColor.withOpacity(0.35) : baseColor;
-
     final width = isHighlighter ? state.highlighterWidth : state.strokeWidth;
-
     final now = DateTime.now();
 
     final newStroke = Stroke(
       id: now.millisecondsSinceEpoch.toString(),
-      points: [
-        StrokePoint(
-          x: point.dx,
-          y: point.dy,
-        ),
-      ],
+      points: [StrokePoint(x: point.dx, y: point.dy)],
       colorValue: color.value,
       strokeWidth: width,
       createdAt: now,
     );
 
-    state = state.copyWith(
-      strokes: [
-        ...state.strokes,
-        newStroke,
-      ],
-    );
+    state = state.copyWith(strokes: [...state.strokes, newStroke]);
   }
 
-//--------------------------
   void addPoint(Offset point) {
     if (state.strokes.isEmpty) return;
 
-    final lastStroke = state.strokes.last;
-
-    final updatedStroke = lastStroke.copyWith(
-      points: [
-        ...lastStroke.points,
-        StrokePoint(
-          x: point.dx,
-          y: point.dy,
-        ),
-      ],
+    final last = state.strokes.last;
+    final updated = last.copyWith(
+      points: [...last.points, StrokePoint(x: point.dx, y: point.dy)],
     );
 
-    final updatedStrokes = [
-      ...state.strokes,
-    ];
-
-    updatedStrokes[updatedStrokes.length - 1] = updatedStroke;
-
     state = state.copyWith(
-      strokes: updatedStrokes,
+      strokes: [...state.strokes.sublist(0, state.strokes.length - 1), updated],
     );
   }
 
   void endStroke() {}
-//_______________________________________________
-//strok settings ;
-  void setHighlighterWidth(double width) {
-    state = state.copyWith(
-      highlighterWidth: width,
-    );
-  }
 
-  void setStrokeWidth(double width) {
-    state = state.copyWith(
-      strokeWidth: width,
-    );
-  }
+  void setHighlighterWidth(double width) =>
+      state = state.copyWith(highlighterWidth: width);
 
-//_______________________________________________
-//earser :
+  void setStrokeWidth(double width) =>
+      state = state.copyWith(strokeWidth: width);
+
+  // ============================================================
+  // محاية
+  // ============================================================
+
   void startErase(Offset point) {
     _saveHistory();
-
     eraseAt(point);
   }
 
-  void eraseAt(
-    Offset point, {
-    double eraserRadius = 14,
-  }) {
-    final updatedStrokes = StrokeEraser.eraseFromStrokes(
+  void eraseAt(Offset point, {double eraserRadius = 14}) {
+    final updated = StrokeEraser.eraseFromStrokes(
       strokes: state.strokes,
       erasePoint: point,
       radius: eraserRadius,
     );
 
-    if (_sameStrokeList(updatedStrokes, state.strokes)) {
-      return;
-    }
-
-    state = state.copyWith(
-      strokes: updatedStrokes,
-    );
+    if (_sameStrokeList(updated, state.strokes)) return;
+    state = state.copyWith(strokes: updated);
   }
 
-  bool _sameStrokeList(
-    List<Stroke> first,
-    List<Stroke> second,
-  ) {
-    if (first.length != second.length) {
-      return false;
+  bool _sameStrokeList(List<Stroke> a, List<Stroke> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!identical(a[i], b[i])) return false;
     }
-
-    for (var i = 0; i < first.length; i++) {
-      if (!identical(first[i], second[i])) {
-        return false;
-      }
-    }
-
     return true;
   }
 
-//_______________________________________________
-//tools/colors :
+  // ============================================================
+  // ألوان وأدوات
+  // ============================================================
+
   void setColor(Color color) {
     final selectedText = state.selectedTextBlock;
-
     if (selectedText != null) {
       _replaceBlockAndPersist(
-        _rebuildText(
-          selectedText,
-          colorValue: color.value,
-        ),
-      );
-
+          _rebuildText(selectedText, colorValue: color.value));
       return;
     }
 
-    if (state.currentTool == CanvasTool.highlighter) {
-      state = state.copyWith(
-        highlighterColor: color,
-        currentTool: CanvasTool.highlighter,
-      );
-    } else if (state.currentTool == CanvasTool.magic) {
-      state = state.copyWith(
-        currentColor: color,
-        currentTool: CanvasTool.magic,
-      );
-    } else {
-      state = state.copyWith(
-        currentColor: color,
-        currentTool: CanvasTool.pen,
-      );
+    switch (state.currentTool) {
+      case CanvasTool.highlighter:
+        state = state.copyWith(highlighterColor: color);
+      case CanvasTool.magic:
+        state =
+            state.copyWith(currentColor: color, currentTool: CanvasTool.magic);
+      default:
+        state =
+            state.copyWith(currentColor: color, currentTool: CanvasTool.pen);
     }
   }
 
   void setTool(CanvasTool tool) {
     final keepSelection = tool == CanvasTool.lasso;
-
     state = state.copyWith(
       currentTool: tool,
       clearSelectedBlockIds: !keepSelection,
       clearSelectedStrokeIds: !keepSelection,
       clearMarqueeRect: !keepSelection,
     );
-
     _marqueeStart = null;
     _lastDragPoint = null;
     _isDraggingSelection = false;
   }
 
-//_______________________________________________
-//selection :
+  // ============================================================
+  // تحديد: بلوكات محفوظة + strokes حيّة
+  // ============================================================
+
   void selectAt(Offset point) {
     _dragMoved = false;
     _dragSnapshotTaken = false;
 
-    final hasSelection = state.hasSelection;
-
-    final bounds = hasSelection ? _selectionBounds() : null;
-
+    final bounds = state.hasSelection ? _selectionBounds() : null;
     if (bounds != null && bounds.inflate(6).contains(point)) {
       _isDraggingSelection = true;
       _lastDragPoint = point;
       _marqueeStart = null;
-
       return;
     }
 
     ContentBlock? hit;
-
     for (final block in state.blocks.reversed) {
-      if (CanvasGeometry.blockRect(block).contains(point)) {
+      if (block is TextBlock && CanvasGeometry.blockRect(block).contains(point)) {
         hit = block;
         break;
       }
@@ -313,25 +257,41 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
         clearSelectedStrokeIds: true,
         clearMarqueeRect: true,
       );
-
       _isDraggingSelection = true;
       _lastDragPoint = point;
       _marqueeStart = null;
-
       return;
+    }
+
+    for (final block in state.blocks.reversed) {
+      if (block is! InkBlock) continue;
+      for (final stroke in block.strokes.reversed) {
+        if (!CanvasGeometry.strokeIntersectsRect(
+          stroke,
+          Rect.fromCircle(center: point, radius: 8),
+        )) {
+          continue;
+        }
+
+        state = state.copyWith(
+          selectedStrokeIds: {stroke.id},
+          clearSelectedBlockIds: true,
+          clearMarqueeRect: true,
+        );
+        _isDraggingSelection = true;
+        _lastDragPoint = point;
+        _marqueeStart = null;
+        return;
+      }
     }
 
     _isDraggingSelection = false;
     _marqueeStart = point;
     _lastDragPoint = null;
-
     state = state.copyWith(
       clearSelectedBlockIds: true,
       clearSelectedStrokeIds: true,
-      marqueeRect: Rect.fromPoints(
-        point,
-        point,
-      ),
+      marqueeRect: Rect.fromPoints(point, point),
     );
   }
 
@@ -342,42 +302,23 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
     }
 
     final start = _marqueeStart;
-
     if (start == null) return;
-
-    final rect = Rect.fromPoints(
-      start,
-      point,
-    );
-
-    final strokeIds = <String>{};
-
-    for (final stroke in state.strokes) {
-      final isInside = stroke.points.any(
-        (p) => rect.contains(
-          Offset(p.x, p.y),
-        ),
-      );
-
-      if (isInside) {
-        strokeIds.add(stroke.id);
-      }
-    }
-
-    final blockIds = <String>{};
-
-    for (final block in state.blocks) {
-      if (rect.overlaps(
-        CanvasGeometry.blockRect(block),
-      )) {
-        blockIds.add(block.id);
-      }
-    }
+    final rect = Rect.fromPoints(start, point);
 
     state = state.copyWith(
       marqueeRect: rect,
-      selectedStrokeIds: strokeIds,
-      selectedBlockIds: blockIds,
+      selectedStrokeIds: {
+        for (final s in state.strokes)
+          if (CanvasGeometry.strokeIntersectsRect(s, rect)) s.id,
+        for (final block in state.blocks)
+          if (block is InkBlock)
+            for (final s in block.strokes)
+              if (CanvasGeometry.strokeIntersectsRect(s, rect)) s.id,
+      },
+      selectedBlockIds: {
+        for (final b in state.blocks)
+          if (b is TextBlock && rect.overlaps(CanvasGeometry.blockRect(b))) b.id,
+      },
     );
   }
 
@@ -386,42 +327,35 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
       _isDraggingSelection = false;
       _lastDragPoint = null;
       _dragSnapshotTaken = false;
-
-      if (_dragMoved) {
-        await _persistSelectedBlocks();
-      }
-
+      if (_dragMoved) await _persistSelectedBlocks();
       _dragMoved = false;
-
       return;
     }
-
     _marqueeStart = null;
-
-    state = state.copyWith(
-      clearMarqueeRect: true,
-    );
+    state = state.copyWith(clearMarqueeRect: true);
   }
 
   Rect? _selectionBounds() {
+    final selectedStrokes = [
+      ...state.strokes,
+      for (final block in state.blocks)
+        if (block is InkBlock) ...block.strokes,
+    ].where((stroke) => state.selectedStrokeIds.contains(stroke.id)).toList();
+
     return CanvasGeometry.selectionBounds(
       blocks: state.blocks,
-      strokes: state.strokes,
+      strokes: selectedStrokes,
       selectedBlockIds: state.selectedBlockIds,
       selectedStrokeIds: state.selectedStrokeIds,
     );
   }
 
-//_______________________________________________
-//drag :
   void _dragSelection(Offset point) {
     final last = _lastDragPoint;
-
     if (last == null) return;
 
     final dx = point.dx - last.dx;
     final dy = point.dy - last.dy;
-
     if (dx == 0 && dy == 0) return;
 
     _lastDragPoint = point;
@@ -432,59 +366,33 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
       _dragSnapshotTaken = true;
     }
 
-    final movedBlocks = [
-      for (final block in state.blocks)
-        state.selectedBlockIds.contains(block.id)
-            ? _shiftBlock(block, dx, dy)
-            : block,
-    ];
-
-    final movedStrokes = state.strokes.map(
-      (stroke) {
-        if (!state.selectedStrokeIds.contains(stroke.id)) {
-          return stroke;
-        }
-
-        return _shiftStroke(
-          stroke,
-          dx,
-          dy,
-        );
-      },
-    ).toList();
-
     state = state.copyWith(
-      blocks: movedBlocks,
-      strokes: movedStrokes,
+      blocks: [
+        for (final b in state.blocks)
+          if (b is InkBlock)
+            _shiftSelectedInkBlock(b, dx, dy)
+          else if (state.selectedBlockIds.contains(b.id))
+            _shiftBlock(b, dx, dy)
+          else
+            b,
+      ],
+      strokes: [
+        for (final s in state.strokes)
+          state.selectedStrokeIds.contains(s.id) ? _shiftStroke(s, dx, dy) : s,
+      ],
     );
   }
 
-  Stroke _shiftStroke(
-    Stroke stroke,
-    double dx,
-    double dy,
-  ) {
-    return Stroke(
-      id: stroke.id,
-      points: stroke.points
-          .map(
-            (point) => StrokePoint(
-              x: point.x + dx,
-              y: point.y + dy,
-            ),
-          )
-          .toList(),
-      colorValue: stroke.colorValue,
-      strokeWidth: stroke.strokeWidth,
-      createdAt: stroke.createdAt,
-    );
-  }
+  Stroke _shiftStroke(Stroke s, double dx, double dy) => Stroke(
+        id: s.id,
+        points:
+            s.points.map((p) => StrokePoint(x: p.x + dx, y: p.y + dy)).toList(),
+        colorValue: s.colorValue,
+        strokeWidth: s.strokeWidth,
+        createdAt: s.createdAt,
+      );
 
-  ContentBlock _shiftBlock(
-    ContentBlock block,
-    double dx,
-    double dy,
-  ) {
+  ContentBlock _shiftBlock(ContentBlock block, double dx, double dy) {
     if (block is InkBlock) {
       return InkBlock(
         id: block.id,
@@ -494,137 +402,125 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
         y: block.y + dy,
         width: block.width,
         height: block.height,
-        strokes: block.strokes
-            .map(
-              (stroke) => _shiftStroke(
-                stroke,
-                dx,
-                dy,
-              ),
-            )
-            .toList(),
+        strokes: block.strokes.map((s) => _shiftStroke(s, dx, dy)).toList(),
         recognizedText: block.recognizedText,
         createdAt: block.createdAt,
         updatedAt: block.updatedAt,
       );
     }
-
     if (block is TextBlock) {
-      return _rebuildText(
-        block,
-        x: block.x + dx,
-        y: block.y + dy,
-      );
+      return _rebuildText(block, x: block.x + dx, y: block.y + dy);
     }
-
     return block;
   }
 
-//_______________________________________________
-//persist changes to selected blocks :
-  Future<void> _persistSelectedBlocks() async {
-    final saveBlock = ref.read(
-      saveBlockUseCaseProvider,
-    );
+  InkBlock _shiftSelectedInkBlock(InkBlock block, double dx, double dy) {
+    if (!block.strokes.any((stroke) => state.selectedStrokeIds.contains(stroke.id))) {
+      return block;
+    }
 
+    return InkBlock(
+      id: block.id,
+      pageId: block.pageId,
+      orderIndex: block.orderIndex,
+      x: block.x,
+      y: block.y,
+      width: block.width,
+      height: block.height,
+      strokes: [
+        for (final stroke in block.strokes)
+          state.selectedStrokeIds.contains(stroke.id)
+              ? _shiftStroke(stroke, dx, dy)
+              : stroke,
+      ],
+      recognizedText: block.recognizedText,
+      createdAt: block.createdAt,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  Future<void> _persistSelectedBlocks() async {
+    final saveBlock = ref.read(saveBlockUseCaseProvider);
     Failure? lastFailure;
 
     for (final block in state.blocks) {
-      if (!state.selectedBlockIds.contains(block.id)) {
-        continue;
-      }
-
-      final result = await saveBlock(
-        SaveBlockParams(block),
-      );
-
-      result.fold(
-        (failure) => lastFailure = failure,
-        (_) {},
-      );
+      final isSelectedBlock = state.selectedBlockIds.contains(block.id);
+      final hasSelectedInk = block is InkBlock &&
+          block.strokes
+              .any((stroke) => state.selectedStrokeIds.contains(stroke.id));
+      if (!isSelectedBlock && !hasSelectedInk) continue;
+      final result = await saveBlock(SaveBlockParams(block));
+      result.fold((f) => lastFailure = f, (_) {});
     }
 
-    if (lastFailure != null) {
-      state = state.copyWith(
-        error: lastFailure,
-      );
-    }
+    if (lastFailure != null) state = state.copyWith(error: lastFailure);
   }
 
-  Future<void> _replaceBlockAndPersist(
-    ContentBlock updated,
-  ) async {
+  Future<void> _replaceBlockAndPersist(ContentBlock updated) async {
     state = state.copyWith(
-      blocks: [
-        for (final block in state.blocks)
-          block.id == updated.id ? updated : block,
-      ],
+      blocks: [for (final b in state.blocks) b.id == updated.id ? updated : b],
     );
 
-    final saveBlock = ref.read(
-      saveBlockUseCaseProvider,
-    );
-
-    final result = await saveBlock(
-      SaveBlockParams(updated),
-    );
-
-    result.fold(
-      (failure) {
-        state = state.copyWith(
-          error: failure,
-        );
-      },
-      (_) {},
-    );
+    final saveBlock = ref.read(saveBlockUseCaseProvider);
+    final result = await saveBlock(SaveBlockParams(updated));
+    result.fold((f) => state = state.copyWith(error: f), (_) {});
   }
 
-//_______________________________________________
-//delete :
+  // ============================================================
+  // حذف
+  // ============================================================
+
   Future<void> deleteSelection() async {
     final blockIds = state.selectedBlockIds;
-
     final deleted = <String>{};
-
     Failure? lastFailure;
 
     if (blockIds.isNotEmpty) {
-      final deleteBlock = ref.read(
-        deleteBlockUseCaseProvider,
-      );
-
+      final deleteBlock = ref.read(deleteBlockUseCaseProvider);
       for (final id in blockIds) {
-        final result = await deleteBlock(
-          DeleteBlockParams(id),
-        );
-
-        result.fold(
-          (failure) => lastFailure = failure,
-          (_) => deleted.add(id),
-        );
+        final result = await deleteBlock(DeleteBlockParams(id));
+        result.fold((f) => lastFailure = f, (_) => deleted.add(id));
       }
     }
 
     var remainingStrokes = state.strokes;
-
     if (state.selectedStrokeIds.isNotEmpty) {
       _saveHistory();
-
       remainingStrokes = state.strokes
-          .where(
-            (stroke) => !state.selectedStrokeIds.contains(
-              stroke.id,
-            ),
-          )
+          .where((s) => !state.selectedStrokeIds.contains(s.id))
           .toList();
     }
 
+    final saveBlock = ref.read(saveBlockUseCaseProvider);
+    final updatedBlocks = <ContentBlock>[];
+    for (final block in state.blocks) {
+      if (block is! InkBlock ||
+          !block.strokes.any(
+              (stroke) => state.selectedStrokeIds.contains(stroke.id))) {
+        updatedBlocks.add(block);
+        continue;
+      }
+
+      final remainingBlockStrokes = block.strokes
+          .where((stroke) => !state.selectedStrokeIds.contains(stroke.id))
+          .toList();
+      if (remainingBlockStrokes.isEmpty) {
+        final result = await ref
+            .read(deleteBlockUseCaseProvider)(DeleteBlockParams(block.id));
+        result.fold((f) => lastFailure = f, (_) {});
+        continue;
+      }
+
+      final updated = block.copyWith(strokes: remainingBlockStrokes);
+      final result = await saveBlock(SaveBlockParams(updated));
+      result.fold((f) {
+        lastFailure = f;
+        updatedBlocks.add(block);
+      }, (_) => updatedBlocks.add(updated));
+    }
+
     state = state.copyWith(
-      blocks: state.blocks
-          .where(
-            (block) => !deleted.contains(block.id),
-          )
-          .toList(),
+      blocks: updatedBlocks.where((b) => !deleted.contains(b.id)).toList(),
       strokes: remainingStrokes,
       selectedBlockIds: blockIds.difference(deleted),
       clearSelectedStrokeIds: true,
@@ -633,8 +529,10 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
     );
   }
 
-  //_______________________________________________
-//text:
+  // ============================================================
+  // نص
+  // ============================================================
+
   TextBlock _rebuildText(
     TextBlock block, {
     String? text,
@@ -645,7 +543,6 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   }) {
     final newText = text ?? block.text;
     final newFontSize = fontSize ?? block.fontSize;
-
     final width = block.width > 0 ? block.width : _defaultTextWidth;
 
     return TextBlock(
@@ -670,83 +567,48 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
     );
   }
 
-  Future<void> editSelectedText(
-    String newText,
-  ) async {
+  Future<void> editSelectedText(String newText) async {
     final selected = state.selectedTextBlock;
-
-    if (selected == null || newText.trim().isEmpty) {
-      return;
-    }
-
-    await _replaceBlockAndPersist(
-      _rebuildText(
-        selected,
-        text: newText,
-      ),
-    );
+    if (selected == null || newText.trim().isEmpty) return;
+    await _replaceBlockAndPersist(_rebuildText(selected, text: newText));
   }
 
-  void previewSelectedTextFontSize(
-    double size,
-  ) {
+  void previewSelectedTextFontSize(double size) {
     final selected = state.selectedTextBlock;
-
     if (selected == null) return;
 
-    final updated = _rebuildText(
-      selected,
-      fontSize: size,
-    );
-
+    final updated = _rebuildText(selected, fontSize: size);
     state = state.copyWith(
-      blocks: [
-        for (final block in state.blocks)
-          block.id == updated.id ? updated : block,
-      ],
+      blocks: [for (final b in state.blocks) b.id == updated.id ? updated : b],
     );
   }
 
   Future<void> commitSelectedTextFontSize() async {
     final selected = state.selectedTextBlock;
-
     if (selected == null) return;
 
-    final saveBlock = ref.read(
-      saveBlockUseCaseProvider,
-    );
-
-    final result = await saveBlock(
-      SaveBlockParams(selected),
-    );
-
-    result.fold(
-      (failure) {
-        state = state.copyWith(
-          error: failure,
-        );
-      },
-      (_) {},
-    );
+    final saveBlock = ref.read(saveBlockUseCaseProvider);
+    final result = await saveBlock(SaveBlockParams(selected));
+    result.fold((f) => state = state.copyWith(error: f), (_) {});
   }
 
-//_______________________________________________
-//save:
-  Future<void> saveCurrentDrawing() async {
-    if (state.strokes.isEmpty) return;
+  // ============================================================
+  // حفظ / مسح
+  // ============================================================
 
-    final saveBlock = ref.read(
-      saveBlockUseCaseProvider,
-    );
+  Future<void> saveCurrentDrawing() async {
+    _resetHistory();
+
+    if (state.strokes.isEmpty) {
+      return;
+    }
+
+    final bounds = CanvasGeometry.strokesBounds(state.strokes);
+    if (bounds == null) {
+      return;
+    }
 
     final now = DateTime.now();
-
-    final bounds = CanvasGeometry.strokesBounds(
-      state.strokes,
-    );
-
-    if (bounds == null) return;
-
     final block = InkBlock(
       id: now.millisecondsSinceEpoch.toString(),
       pageId: pageId,
@@ -760,54 +622,36 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
       updatedAt: now,
     );
 
-    final result = await saveBlock(
-      SaveBlockParams(block),
-    );
+    final saveBlock = ref.read(saveBlockUseCaseProvider);
+    final result = await saveBlock(SaveBlockParams(block));
 
     state = result.fold(
-      (failure) {
-        return state.copyWith(
-          error: failure,
-        );
-      },
+      (failure) => state.copyWith(error: failure),
       (_) {
         return state.copyWith(
-          blocks: [
-            ...state.blocks,
-            block,
-          ],
+          blocks: [...state.blocks, block],
           strokes: [],
           clearSelectedStrokeIds: true,
+          canUndo: false,
+          canRedo: false,
         );
       },
     );
   }
 
-//_______________________________________________
-//clear:
   Future<void> clear() async {
     _saveHistory();
 
-    final deleteBlock = ref.read(
-      deleteBlockUseCaseProvider,
-    );
-
+    final deleteBlock = ref.read(deleteBlockUseCaseProvider);
     final remainingBlocks = <ContentBlock>[];
-
     Failure? lastFailure;
 
     for (final block in state.blocks) {
-      final result = await deleteBlock(
-        DeleteBlockParams(block.id),
-      );
-
-      result.fold(
-        (failure) {
-          lastFailure = failure;
-          remainingBlocks.add(block);
-        },
-        (_) {},
-      );
+      final result = await deleteBlock(DeleteBlockParams(block.id));
+      result.fold((f) {
+        lastFailure = f;
+        remainingBlocks.add(block);
+      }, (_) {});
     }
 
     state = state.copyWith(
@@ -822,90 +666,49 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
     );
   }
 
-  //_______________________________________________
-  // Handwriting recognition
+  // ============================================================
+  // التعرف على الكتابة
+  // ============================================================
 
-  Future<void> convertToText({
-    required String language,
-  }) async {
-    if (state.selectedStrokeIds.isEmpty) {
-      return;
-    }
+  Future<void> convertToText({required String language}) async {
+    if (state.selectedStrokeIds.isEmpty) return;
 
     final strokesToConvert = state.strokes
-        .where(
-          (stroke) => state.selectedStrokeIds.contains(
-            stroke.id,
-          ),
-        )
+        .where((s) => state.selectedStrokeIds.contains(s.id))
         .toList();
+    if (strokesToConvert.isEmpty) return;
 
-    if (strokesToConvert.isEmpty) {
-      return;
-    }
+    state = state.copyWith(isRecognizing: true, clearError: true);
 
-    state = state.copyWith(
-      isRecognizing: true,
-      clearError: true,
-    );
-
-    final convertHandwriting = ref.read(
-      convertHandwritingUseCaseProvider,
-    );
-
+    final convertHandwriting = ref.read(convertHandwritingUseCaseProvider);
     final result = await convertHandwriting(
-      ConvertHandwritingParams(
-        strokes: strokesToConvert,
-        language: language,
-      ),
+      ConvertHandwritingParams(strokes: strokesToConvert, language: language),
     );
 
     state = result.fold(
-      (failure) {
-        return state.copyWith(
-          isRecognizing: false,
-          error: failure,
-        );
-      },
-      (text) {
-        return state.copyWith(
-          isRecognizing: false,
-          pendingRecognizedText: text,
-          pendingRecognitionBounds: CanvasGeometry.strokesBounds(
-            strokesToConvert,
-          ),
-          pendingRecognitionStrokeIds:
-              strokesToConvert.map((stroke) => stroke.id).toSet(),
-        );
-      },
+      (failure) => state.copyWith(isRecognizing: false, error: failure),
+      (text) => state.copyWith(
+        isRecognizing: false,
+        pendingRecognizedText: text,
+        pendingRecognitionBounds:
+            CanvasGeometry.strokesBounds(strokesToConvert),
+        pendingRecognitionStrokeIds: strokesToConvert.map((s) => s.id).toSet(),
+      ),
     );
   }
 
   void updatePendingText(String text) {
     if (text.trim().isEmpty) return;
-
-    state = state.copyWith(
-      pendingRecognizedText: text,
-    );
+    state = state.copyWith(pendingRecognizedText: text);
   }
 
   Future<void> confirmRecognition() async {
     final bounds = state.pendingRecognitionBounds;
-
     final text = state.pendingRecognizedText;
-
     final convertedIds = state.pendingRecognitionStrokeIds;
-
-    if (bounds == null || text == null) {
-      return;
-    }
-
-    final saveBlock = ref.read(
-      saveBlockUseCaseProvider,
-    );
+    if (bounds == null || text == null) return;
 
     final now = DateTime.now();
-
     final width = bounds.width < 160 ? 160.0 : bounds.width;
 
     final block = TextBlock(
@@ -929,56 +732,34 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
       updatedAt: now,
     );
 
-    final result = await saveBlock(
-      SaveBlockParams(block),
-    );
+    final saveBlock = ref.read(saveBlockUseCaseProvider);
+    final result = await saveBlock(SaveBlockParams(block));
 
     state = result.fold(
-      (failure) {
-        return state.copyWith(
-          error: failure,
-        );
-      },
-      (_) {
-        return state.copyWith(
-          blocks: [
-            ...state.blocks,
-            block,
-          ],
-          strokes: state.strokes
-              .where(
-                (stroke) => !convertedIds.contains(stroke.id),
-              )
-              .toList(),
-          clearSelectedStrokeIds: true,
-          clearPendingRecognition: true,
-        );
-      },
+      (failure) => state.copyWith(error: failure),
+      (_) => state.copyWith(
+        blocks: [...state.blocks, block],
+        strokes:
+            state.strokes.where((s) => !convertedIds.contains(s.id)).toList(),
+        clearSelectedStrokeIds: true,
+        clearPendingRecognition: true,
+      ),
     );
   }
 
   void discardRecognition() {
     state = state.copyWith(
-      clearPendingRecognition: true,
-      clearSelectedStrokeIds: true,
-    );
+        clearPendingRecognition: true, clearSelectedStrokeIds: true);
   }
 
-  //_______________________________________________
-  // Add text
+  // ============================================================
+  // إضافة نص
+  // ============================================================
 
-  Future<void> addTextBlock(
-    String text,
-    Offset position,
-  ) async {
+  Future<void> addTextBlock(String text, Offset position) async {
     if (text.trim().isEmpty) return;
 
-    final saveBlock = ref.read(
-      saveBlockUseCaseProvider,
-    );
-
     final now = DateTime.now();
-
     final block = TextBlock(
       id: now.millisecondsSinceEpoch.toString(),
       pageId: pageId,
@@ -1000,36 +781,20 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
       updatedAt: now,
     );
 
-    final result = await saveBlock(
-      SaveBlockParams(block),
-    );
+    final saveBlock = ref.read(saveBlockUseCaseProvider);
+    final result = await saveBlock(SaveBlockParams(block));
 
     state = result.fold(
-      (failure) {
-        return state.copyWith(
-          error: failure,
-        );
-      },
-      (_) {
-        return state.copyWith(
-          blocks: [
-            ...state.blocks,
-            block,
-          ],
-          clearError: true,
-          selectedBlockIds: {block.id},
-          clearSelectedStrokeIds: true,
-          currentTool: CanvasTool.lasso,
-        );
-      },
+      (failure) => state.copyWith(error: failure),
+      (_) => state.copyWith(
+        blocks: [...state.blocks, block],
+        clearError: true,
+        selectedBlockIds: {block.id},
+        clearSelectedStrokeIds: true,
+        currentTool: CanvasTool.lasso,
+      ),
     );
   }
-//_______________________________________________
-  // Error
 
-  void dismissError() {
-    state = state.copyWith(
-      clearError: true,
-    );
-  }
+  void dismissError() => state = state.copyWith(clearError: true);
 }

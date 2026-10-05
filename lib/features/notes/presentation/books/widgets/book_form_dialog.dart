@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:freenotes_app/core/widgets/color_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/entities/book.dart';
 import '../books_provider.dart';
-import 'book_color_picker.dart';
 
 class BookFormDialog extends ConsumerStatefulWidget {
   final Book? existingBook;
@@ -123,7 +123,7 @@ class _BookFormDialogState extends ConsumerState<BookFormDialog> {
                 style: Theme.of(context).textTheme.labelLarge,
               ),
               const SizedBox(height: 8),
-              BookColorPicker(
+              ColorPicker(
                 selectedColor: _selectedColor,
                 onColorSelected: _selectColor,
               ),

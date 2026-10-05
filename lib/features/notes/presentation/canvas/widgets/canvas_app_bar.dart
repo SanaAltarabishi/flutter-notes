@@ -24,7 +24,7 @@ class CanvasAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         PopupMenuButton<String>(
           initialValue: selectedLanguage,
-          onSelected: (lang) => onLanguageChanged,
+          onSelected: (lang) => onLanguageChanged(lang),
           itemBuilder: (context) => [
             const PopupMenuItem(
                 value: AppConstants.langArabic, child: Text(Appstrings.arabic)),

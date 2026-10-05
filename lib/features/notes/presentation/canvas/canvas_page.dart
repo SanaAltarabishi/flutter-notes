@@ -30,12 +30,15 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
 
     return Scaffold(
       appBar: CanvasAppBar(
-        selectedLanguage: _selectedLanguage,
-        onLanguageChanged: (language) {
-          setState(() => _selectedLanguage = language);
-        },
-         onSave: notifier.saveCurrentDrawing, //todo : it's not actually used
-      ),
+          selectedLanguage: _selectedLanguage,
+          onLanguageChanged: (language) {
+            setState(() => _selectedLanguage = language);
+          },
+          onSave: () async {
+            await notifier.saveCurrentDrawing();
+            print('saved');
+          } //todo : it's not actually used
+          ),
       body: Column(
         children: [
           CanvasToolbar(

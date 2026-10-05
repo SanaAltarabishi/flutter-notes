@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:freenotes_app/core/widgets/color_picker.dart';
 import '../canvas_state.dart';
 
 class CanvasToolbar extends StatelessWidget {
@@ -159,6 +160,11 @@ class CanvasToolbar extends StatelessWidget {
                       isSelected: activeColor.value == color.value,
                       onTap: () => onColorChanged(color),
                     )),
+                ColorPicker(
+                  selectedColor: activeColor,
+                  onColorSelected: onColorChanged,
+                  compact: true,
+                ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Slider(
