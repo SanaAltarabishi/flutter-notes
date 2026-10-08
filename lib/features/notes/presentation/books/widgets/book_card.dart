@@ -20,6 +20,7 @@ class BookCard extends StatelessWidget {
   final String title;
   final DateTime createdAt;
   final VoidCallback? onTap;
+  final VoidCallback? onEdit;
   final Color coverColor;
 
   const BookCard({
@@ -27,6 +28,7 @@ class BookCard extends StatelessWidget {
     required this.title,
     required this.createdAt,
     this.onTap,
+    this.onEdit,
     this.coverColor = AppColors.seedColor,
   });
 //_________________________________________________________
@@ -55,7 +57,26 @@ class BookCard extends StatelessWidget {
           children: [
             _buildPageBlock(),
             _buildCover(),
+            if (onEdit != null) _buildEditButton(),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEditButton() {
+    return Positioned(
+      top: 8,
+      right: 8,
+      child: IconButton(
+        onPressed: onEdit,
+        icon: const Icon(Icons.edit_outlined, size: 18),
+        tooltip: 'Edit book',
+        style: IconButton.styleFrom(
+          fixedSize: const Size(34, 34),
+          padding: EdgeInsets.zero,
+          backgroundColor: Colors.black45,
+          foregroundColor: Colors.white,
         ),
       ),
     );
@@ -168,10 +189,10 @@ class BookCard extends StatelessWidget {
             end: Alignment.centerRight,
             colors: [
               AppColors.bookSpineDark,
-               Color(0x26000000),
+              Color(0x26000000),
               AppColors.bookSpineHighlight,
             ],
-            stops:  [0.0, 0.55, 1.0],
+            stops: [0.0, 0.55, 1.0],
           ),
         ),
       ),

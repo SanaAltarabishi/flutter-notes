@@ -19,6 +19,7 @@ import '../../domain/usecases/pages/create_page.dart';
 import '../../domain/usecases/books/get_books.dart';
 import '../../domain/usecases/pages/delete_page.dart';
 import '../../domain/usecases/pages/get_pages.dart';
+import '../../domain/usecases/pages/update_page.dart';
 
 //CORE:
 final dioProvider = Provider<Dio>((ref) {
@@ -86,6 +87,10 @@ final createPageUseCaseProvider = Provider<CreatePage>((ref) {
 
 final deletePageUseCaseProvider = Provider<DeletePage>((ref) {
   return DeletePage(ref.watch(notesRepositoryProvider));
+});
+
+final updatePageUseCaseProvider = Provider<UpdatePage>((ref) {
+  return UpdatePage(ref.watch(notesRepositoryProvider));
 });
 
 //_____________________________

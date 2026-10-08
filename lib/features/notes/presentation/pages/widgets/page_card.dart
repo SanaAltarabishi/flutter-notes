@@ -4,12 +4,14 @@ import '../../../domain/entities/page.dart';
 class PageCard extends StatelessWidget {
   final NotePage page;
   final VoidCallback onTap;
+  final VoidCallback onEditName;
   final VoidCallback onDelete;
 
   const PageCard({
     super.key,
     required this.page,
     required this.onTap,
+    required this.onEditName,
     required this.onDelete,
   });
 
@@ -46,7 +48,7 @@ class PageCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Page ${page.orderIndex + 1}',
+                      page.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 4),
@@ -59,11 +61,23 @@ class PageCard extends StatelessWidget {
               ),
               PopupMenuButton<String>(
                 onSelected: (value) {
-                  if (value == 'delete') {
+                  if (value == 'edit') {
+                    onEditName();
+                  } else if (value == 'delete') {
                     onDelete();
                   }
                 },
                 itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_outlined),
+                        SizedBox(width: 8),
+                        Text('Edit name'),
+                      ],
+                    ),
+                  ),
                   PopupMenuItem(
                     value: 'delete',
                     child: Row(

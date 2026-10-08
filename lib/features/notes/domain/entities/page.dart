@@ -4,6 +4,7 @@ import 'content_block.dart';
 class NotePage extends Equatable {
   final String id;
   final String bookId;
+  final String name;
   final int orderIndex;
   final List<ContentBlock> blocks;
   final DateTime createdAt;
@@ -12,6 +13,7 @@ class NotePage extends Equatable {
   const NotePage({
     required this.id,
     required this.bookId,
+    this.name = '',
     required this.orderIndex,
     this.blocks = const [],
     required this.createdAt,
@@ -21,6 +23,7 @@ class NotePage extends Equatable {
   NotePage copyWith({
     String? id,
     String? bookId,
+    String? name,
     int? orderIndex,
     List<ContentBlock>? blocks,
     DateTime? createdAt,
@@ -29,6 +32,7 @@ class NotePage extends Equatable {
     return NotePage(
       id: id ?? this.id,
       bookId: bookId ?? this.bookId,
+      name: name ?? this.name,
       orderIndex: orderIndex ?? this.orderIndex,
       blocks: blocks ?? this.blocks,
       createdAt: createdAt ?? this.createdAt,
@@ -37,5 +41,5 @@ class NotePage extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, bookId, orderIndex, blocks];
+  List<Object?> get props => [id, bookId, name, orderIndex, blocks];
 }

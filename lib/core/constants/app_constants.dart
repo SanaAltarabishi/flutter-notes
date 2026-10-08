@@ -14,7 +14,7 @@ class AppConstants {
 
   // Database
   static const String dbName = 'freenotes.db';
-  static const int dbVersion = 2; //1;
+  static const int dbVersion = 3;
 
   // Content block types
   static const String blockTypeInk = 'ink';

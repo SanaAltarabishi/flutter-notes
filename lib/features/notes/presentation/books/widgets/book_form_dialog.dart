@@ -63,7 +63,6 @@ class _BookFormDialogState extends ConsumerState<BookFormDialog> {
         _selectedColor.value,
       );
     } else {
-      print('here here ');
       notifier.updateBook(
         widget.existingBook!.copyWith(
           title: title,

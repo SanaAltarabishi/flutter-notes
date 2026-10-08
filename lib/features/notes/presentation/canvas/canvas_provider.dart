@@ -193,7 +193,6 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   // ============================================================
   // ألوان وأدوات
   // ============================================================
-
   void setColor(Color color) {
     final selectedText = state.selectedTextBlock;
     if (selectedText != null) {
@@ -208,6 +207,9 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
       case CanvasTool.magic:
         state =
             state.copyWith(currentColor: color, currentTool: CanvasTool.magic);
+      case CanvasTool.lasso:
+        state =
+            state.copyWith(currentColor: color, currentTool: CanvasTool.lasso);
       default:
         state =
             state.copyWith(currentColor: color, currentTool: CanvasTool.pen);
@@ -245,7 +247,8 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
 
     ContentBlock? hit;
     for (final block in state.blocks.reversed) {
-      if (block is TextBlock && CanvasGeometry.blockRect(block).contains(point)) {
+      if (block is TextBlock &&
+          CanvasGeometry.blockRect(block).contains(point)) {
         hit = block;
         break;
       }
@@ -317,7 +320,8 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
       },
       selectedBlockIds: {
         for (final b in state.blocks)
-          if (b is TextBlock && rect.overlaps(CanvasGeometry.blockRect(b))) b.id,
+          if (b is TextBlock && rect.overlaps(CanvasGeometry.blockRect(b)))
+            b.id,
       },
     );
   }
@@ -415,7 +419,8 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   }
 
   InkBlock _shiftSelectedInkBlock(InkBlock block, double dx, double dy) {
-    if (!block.strokes.any((stroke) => state.selectedStrokeIds.contains(stroke.id))) {
+    if (!block.strokes
+        .any((stroke) => state.selectedStrokeIds.contains(stroke.id))) {
       return block;
     }
 
@@ -495,8 +500,8 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
     final updatedBlocks = <ContentBlock>[];
     for (final block in state.blocks) {
       if (block is! InkBlock ||
-          !block.strokes.any(
-              (stroke) => state.selectedStrokeIds.contains(stroke.id))) {
+          !block.strokes
+              .any((stroke) => state.selectedStrokeIds.contains(stroke.id))) {
         updatedBlocks.add(block);
         continue;
       }

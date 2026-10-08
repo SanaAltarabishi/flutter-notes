@@ -111,6 +111,12 @@ Future<void> _onUpgrade(
       DEFAULT 0xFF2196F3
     ''');
   }
+  if (oldVersion < 3) {
+    await db.execute('''
+      ALTER TABLE pages
+      ADD COLUMN name TEXT NOT NULL DEFAULT ''
+    ''');
+  }
 }
 //_______________________________________________
   Future<void> _onCreate(Database db, int version) async {
@@ -147,6 +153,7 @@ Book
       CREATE TABLE pages (
         id TEXT PRIMARY KEY,
         book_id TEXT NOT NULL,
+        name TEXT NOT NULL DEFAULT '',
         order_index INTEGER NOT NULL,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,

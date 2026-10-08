@@ -6,6 +6,7 @@ import 'package:freenotes_app/features/notes/presentation/pages/pages_provider.d
 import 'package:freenotes_app/features/notes/presentation/pages/widgets/page_card.dart';
 import '../../../../core/errors/failures.dart';
 import '../../domain/entities/book.dart';
+import '../../domain/entities/page.dart';
 
 class PagesPage extends ConsumerWidget {
   final Book book;
@@ -62,6 +63,7 @@ class PagesPage extends ConsumerWidget {
                     ),
                   );
                 },
+                onEditName: () => _editPageName(context, ref, book.id, page),
                 onDelete: () {
                   _confirmDelete(
                     context,
@@ -76,12 +78,125 @@ class PagesPage extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          ref.read(pagesProvider(book.id).notifier).addPage();
-        },
+        onPressed: () => _createPage(context, ref, book.id),
         icon: const Icon(Icons.add),
         label: const Text('New page'),
       ),
+    );
+  }
+}
+
+//____________
+Future<void> _createPage(
+  BuildContext context,
+  WidgetRef ref,
+  String bookId,
+) async {
+  final name = await showDialog<String>(
+    context: context,
+    builder: (_) => const _PageNameDialog(title: 'Name your page'),
+  );
+
+  if (name == null || !context.mounted) {
+    return;
+  }
+
+  await ref.read(pagesProvider(bookId).notifier).addPage(name);
+}
+
+//____________
+Future<void> _editPageName(
+  BuildContext context,
+  WidgetRef ref,
+  String bookId,
+  NotePage page,
+) async {
+  final name = await showDialog<String>(
+    context: context,
+    builder: (_) => _PageNameDialog(
+      title: 'Edit page name',
+      initialName: page.name,
+      confirmLabel: 'Save',
+    ),
+  );
+
+  if (name == null || !context.mounted) {
+    return;
+  }
+
+  await ref
+      .read(pagesProvider(bookId).notifier)
+      .updatePageName(page, name);
+}
+
+//____________
+class _PageNameDialog extends StatefulWidget {
+  final String title;
+  final String initialName;
+  final String confirmLabel;
+
+  const _PageNameDialog({
+    required this.title,
+    this.initialName = '',
+    this.confirmLabel = 'Create',
+  });
+
+  @override
+  State<_PageNameDialog> createState() => _PageNameDialogState();
+}
+
+class _PageNameDialogState extends State<_PageNameDialog> {
+  late final TextEditingController _controller;
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          controller: _controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            labelText: 'Page name',
+            hintText: 'e.g. Meeting notes',
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Enter a page name';
+            }
+            return null;
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              Navigator.pop(context, _controller.text.trim());
+            }
+          },
+          child: Text(widget.confirmLabel),
+        ),
+      ],
     );
   }
 }

@@ -6,7 +6,7 @@ import 'canvas_provider.dart';
 import 'canvas_state.dart';
 import 'widgets/canvas_app_bar.dart';
 import 'widgets/text_editor_dialog.dart';
-import 'widgets/toolbar.dart';
+import 'widgets/tool_bar_widgets/toolbar.dart';
 import 'widgets/canvas_error_banner.dart';
 import 'widgets/clear_canvas_dialog.dart';
 
@@ -29,15 +29,10 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
     final selectedText = canvasState.selectedTextBlock;
 
     return Scaffold(
-      appBar: CanvasAppBar(
-          selectedLanguage: _selectedLanguage,
-          onLanguageChanged: (language) {
-            setState(() => _selectedLanguage = language);
-          },
-          onSave: () async {
-            await notifier.saveCurrentDrawing();
-            print('saved');
-          } //todo : it's not actually used
+      appBar: CanvasAppBar(onSave: () async {
+        await notifier.saveCurrentDrawing();
+        print('saved');
+      } //todo : it's not actually used
           ),
       body: Column(
         children: [
@@ -55,6 +50,7 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
                     : canvasState.strokeWidth),
             sliderMin: selectedText != null ? 10 : 1,
             sliderMax: selectedText != null ? 48 : (isHighlighter ? 30 : 10),
+            selectedLanguage: _selectedLanguage,
             canUndo: canvasState.canUndo,
             canRedo: canvasState.canRedo,
             isRecognizing: canvasState.isRecognizing,
@@ -88,6 +84,9 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
             onSliderChangeEnd: selectedText != null
                 ? (_) => notifier.commitSelectedTextFontSize()
                 : null,
+            onLanguageChanged: (language) {
+              setState(() => _selectedLanguage = language);
+            },
             onToolChanged: notifier.setTool,
           ),
           if (canvasState.error != null)

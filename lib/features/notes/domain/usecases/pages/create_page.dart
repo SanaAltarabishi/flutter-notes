@@ -6,7 +6,9 @@ import '../../../../../core/usecases/usecase.dart';
 
 class CreatePageParams {
   final String bookId;
-  const CreatePageParams(this.bookId);
+  final String name;
+
+  const CreatePageParams(this.bookId, this.name);
 }
 
 //_________________________________________________
@@ -25,6 +27,7 @@ class CreatePage implements UseCase<NotePage, CreatePageParams> {
       final page = NotePage(
         id: now.millisecondsSinceEpoch.toString(),
         bookId: params.bookId,
+        name: params.name,
         orderIndex: orderIndex,
         createdAt: now,
         updatedAt: now,

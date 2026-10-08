@@ -68,6 +68,10 @@ class BooksPage extends ConsumerWidget {
                 book,
               );
             },
+            onBookEdit: (book) => _showBookForm(
+              context,
+              existingBook: book,
+            ),
           );
         },
       ),
@@ -81,10 +85,15 @@ class BooksPage extends ConsumerWidget {
     );
   }
 
-  void _showBookForm(BuildContext context) {
+  void _showBookForm(
+    BuildContext context, {
+    Book? existingBook,
+  }) {
     showDialog(
       context: context,
-      builder: (_) => const BookFormDialog(),
+      builder: (_) => BookFormDialog(
+        existingBook: existingBook,
+      ),
     );
   }
 
@@ -146,10 +155,12 @@ class BooksPage extends ConsumerWidget {
 class _BooksGrid extends StatelessWidget {
   final List<Book> books;
   final ValueChanged<Book> onBookLongPress;
+  final ValueChanged<Book> onBookEdit;
 
   const _BooksGrid({
     required this.books,
     required this.onBookLongPress,
+    required this.onBookEdit,
   });
 
   @override
@@ -172,6 +183,7 @@ class _BooksGrid extends StatelessWidget {
             title: book.title,
             createdAt: book.createdAt,
             coverColor: Color(book.coverColorValue),
+            onEdit: () => onBookEdit(book),
             onTap: () {
               Navigator.push(
                 context,
