@@ -1,6 +1,10 @@
 class AppConstants {
   AppConstants._();
 
+  // Drawing page dimensions in scene coordinates.
+  static const double pageWidth = 800;
+  static const double pageHeight = 1600;
+
   // MyScript Cloud API
   static const String myScriptBaseUrl =
       'https://cloud.myscript.com/api/v4.0/iink';

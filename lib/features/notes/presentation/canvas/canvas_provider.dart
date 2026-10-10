@@ -165,10 +165,13 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   // ============================================================
   // محاية
   // ============================================================
+  void setEraserSize(double size) {
+    state = state.copyWith(eraserSize: size);
+  }
 
-  void startErase(Offset point) {
+  void startErase(Offset point, {double eraserRadius = 14}) {
     _saveHistory();
-    eraseAt(point);
+    eraseAt(point, eraserRadius: eraserRadius);
   }
 
   void eraseAt(Offset point, {double eraserRadius = 14}) {
@@ -217,7 +220,7 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   }
 
   void setTool(CanvasTool tool) {
-    final keepSelection = tool == CanvasTool.lasso;
+    final keepSelection = tool == CanvasTool.lasso || tool == CanvasTool.pan;
     state = state.copyWith(
       currentTool: tool,
       clearSelectedBlockIds: !keepSelection,
@@ -247,10 +250,19 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
 
     ContentBlock? hit;
     for (final block in state.blocks.reversed) {
-      if (block is TextBlock &&
-          CanvasGeometry.blockRect(block).contains(point)) {
-        hit = block;
-        break;
+      if (block is TextBlock) {
+        final availableWidth =
+            (state.canvasSize.width - block.x).clamp(0.0, double.infinity);
+
+        final textRect = CanvasGeometry.blockRect(
+          block,
+          maxWidth: availableWidth,
+        );
+
+        if (textRect.contains(point)) {
+          hit = block;
+          break;
+        }
       }
     }
 

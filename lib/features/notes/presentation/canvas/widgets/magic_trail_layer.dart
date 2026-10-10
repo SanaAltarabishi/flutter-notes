@@ -150,8 +150,6 @@ class _MagicTrailPainter extends CustomPainter {
   final Color lineColor;
   final double sparkleAngle;
 
-  static const double sparkleRadius = 15;
-
   _MagicTrailPainter({
     required this.points,
     required this.lineColor,
@@ -218,10 +216,6 @@ class _MagicTrailPainter extends CustomPainter {
       head,
     );
 
-    _drawRotatingMiniStars(
-      canvas,
-      head,
-    );
   }
 
   // ==============================================================
@@ -239,72 +233,6 @@ class _MagicTrailPainter extends CustomPainter {
     canvas.drawCircle(
       position,
       6,
-      paint,
-    );
-  }
-
-  // ==============================================================
-  // MINI STARS
-  // ==============================================================
-
-  void _drawRotatingMiniStars(
-    Canvas canvas,
-    Offset center,
-  ) {
-    final paint = Paint()
-      ..color = lineColor
-      ..style = PaintingStyle.fill;
-
-    for (int i = 0; i < 3; i++) {
-      final angle = sparkleAngle + (i * 2 * pi / 3);
-
-      final position = Offset(
-        center.dx + sparkleRadius * cos(angle),
-        center.dy + sparkleRadius * sin(angle),
-      );
-
-      _drawMiniStar(
-        canvas,
-        position,
-        paint,
-      );
-    }
-  }
-
-  // ==============================================================
-  // MINI STAR SHAPE
-  // ==============================================================
-
-  void _drawMiniStar(
-    Canvas canvas,
-    Offset position,
-    Paint paint,
-  ) {
-    final path = Path();
-
-    const outerRadius = 7.0;
-    const innerRadius = 2.0;
-
-    for (int i = 0; i < 10; i++) {
-      final angle = pi / 5 * i;
-
-      final radius = i.isEven ? outerRadius : innerRadius;
-
-      final x = position.dx + radius * cos(angle);
-
-      final y = position.dy + radius * sin(angle);
-
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-
-    path.close();
-
-    canvas.drawPath(
-      path,
       paint,
     );
   }

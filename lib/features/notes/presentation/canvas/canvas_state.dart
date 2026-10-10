@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/failures.dart';
 import '../../domain/entities/content_block.dart';
 import '../../domain/entities/stroke.dart';
 
-enum CanvasTool { pen, eraser, lasso, highlighter, magic }
+enum CanvasTool { pen, eraser, lasso, highlighter, magic, pan }
 
 //State = Snapshot of everything the UI currently needs to know.
 class CanvasState {
@@ -18,6 +19,7 @@ class CanvasState {
   final Failure? error;
   final Size canvasSize;
   final List<ContentBlock> blocks;
+  final double eraserSize;
 
   final bool canUndo;
   final bool canRedo;
@@ -38,9 +40,12 @@ class CanvasState {
     this.highlighterColor = Colors.yellow,
     this.strokeWidth = 3.0,
     this.highlighterWidth = 12.0,
-    this.currentTool = CanvasTool.pen,
+    this.currentTool = CanvasTool.pan,
     this.isRecognizing = false,
-    this.canvasSize = Size.zero,
+    this.canvasSize = const Size(
+      AppConstants.pageWidth,
+      AppConstants.pageHeight,
+    ),
     this.blocks = const [],
     this.canUndo = false,
     this.canRedo = false,
@@ -50,6 +55,7 @@ class CanvasState {
     this.selectedBlockIds = const {},
     this.selectedStrokeIds = const {},
     this.marqueeRect,
+    this.eraserSize = 14.0,
   });
 
   CanvasState copyWith({
@@ -76,6 +82,7 @@ class CanvasState {
     bool clearSelectedStrokeIds = false,
     Rect? marqueeRect,
     bool clearMarqueeRect = false,
+    double? eraserSize,
   }) {
     return CanvasState(
       strokes: strokes ?? this.strokes,
@@ -106,6 +113,7 @@ class CanvasState {
           ? const {}
           : (selectedStrokeIds ?? this.selectedStrokeIds),
       marqueeRect: clearMarqueeRect ? null : (marqueeRect ?? this.marqueeRect),
+      eraserSize: eraserSize ?? this.eraserSize,
     );
   }
 

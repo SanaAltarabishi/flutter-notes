@@ -6,31 +6,78 @@ import '../../../../../core/constants/app_constants.dart';
 import '../canvas_provider.dart';
 import '../canvas_state.dart';
 
-class CanvasArea extends StatelessWidget {
+class CanvasArea extends StatefulWidget {
   final CanvasState state;
   final CanvasNotifier notifier;
+  final TransformationController transformationController;
+  final ValueChanged<Size> onViewportSizeChanged;
   final String selectedLanguage;
   final VoidCallback onEditPendingText;
   const CanvasArea(
       {super.key,
       required this.state,
       required this.notifier,
+      required this.transformationController,
+      required this.onViewportSizeChanged,
       required this.selectedLanguage,
       required this.onEditPendingText});
+
+  @override
+  State<CanvasArea> createState() => _CanvasAreaState();
+}
+
+class _CanvasAreaState extends State<CanvasArea> {
+  bool _initialScaleApplied = false;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          notifier.setCanvasSize(constraints.biggest);
-        });
+        if (constraints.biggest.width > 0) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            widget.onViewportSizeChanged(constraints.biggest);
+            if (_initialScaleApplied) return;
+            final scale =
+                constraints.biggest.width / AppConstants.pageWidth;
+            widget.transformationController.value =
+                Matrix4.diagonal3Values(scale, scale, 1);
+            _initialScaleApplied = true;
+          });
+        }
+
+        final isPan = widget.state.currentTool == CanvasTool.pan;
+        final isMagic = widget.state.currentTool == CanvasTool.magic;
+        final fitScale = constraints.biggest.width / AppConstants.pageWidth;
 
         return Stack(
           children: [
-            _buildDrawingCanvas(),
-            _buildMagicLayer(),
-            _buildPendingRecognition(),
+            InteractiveViewer(
+              transformationController: widget.transformationController,
+              constrained: false,
+              panEnabled: isPan,
+              scaleEnabled: isPan,
+              minScale: fitScale,
+              maxScale: 4,
+              boundaryMargin: const EdgeInsets.all(200),
+              child: SizedBox(
+                width: AppConstants.pageWidth,
+                height: AppConstants.pageHeight,
+                child: Stack(
+                  children: [
+                    if (isPan)
+                      IgnorePointer(child: _buildDrawingCanvas())
+                    else
+                      _buildDrawingCanvas(),
+                    _buildPendingRecognition(),
+                  ],
+                ),
+              ),
+            ),
+            if (isMagic)
+              Positioned.fill(
+                child: _buildMagicLayer(),
+              ),
           ],
         );
       },
@@ -40,11 +87,11 @@ class CanvasArea extends StatelessWidget {
 //___________________
   Widget _buildDrawingCanvas() {
     return DrawingCanvas(
-      strokes: state.strokes,
-      blocks: state.blocks,
-      selectedBlockIds: state.selectedBlockIds,
-      selectedStrokeIds: state.selectedStrokeIds,
-      marqueeRect: state.marqueeRect,
+      strokes: widget.state.strokes,
+      blocks: widget.state.blocks,
+      selectedBlockIds: widget.state.selectedBlockIds,
+      selectedStrokeIds: widget.state.selectedStrokeIds,
+      marqueeRect: widget.state.marqueeRect,
       onStart: _handleStart,
       onUpdate: _handleUpdate,
       onEnd: _handleEnd,
@@ -53,21 +100,19 @@ class CanvasArea extends StatelessWidget {
 
 //___________________
   Widget _buildMagicLayer() {
-    if (state.currentTool != CanvasTool.magic) {
+    if (widget.state.currentTool != CanvasTool.magic) {
       return const SizedBox.shrink();
     }
 
-    return Positioned.fill(
-      child: MagicTrailLayer(
-        color: state.currentColor,
-      ),
+    return MagicTrailLayer(
+      color: widget.state.currentColor,
     );
   }
 
 //___________________
   Widget _buildPendingRecognition() {
-    final text = state.pendingRecognizedText;
-    final bounds = state.pendingRecognitionBounds;
+    final text = widget.state.pendingRecognizedText;
+    final bounds = widget.state.pendingRecognitionBounds;
 
     if (text == null || bounds == null) {
       return const SizedBox.shrink();
@@ -78,68 +123,74 @@ class CanvasArea extends StatelessWidget {
       top: (bounds.top - 56).clamp(0, double.infinity),
       child: PendingRecognitionBanner(
         text: text,
-        textDirection: selectedLanguage == AppConstants.langArabic
+        textDirection: widget.selectedLanguage == AppConstants.langArabic
             ? TextDirection.rtl
             : TextDirection.ltr,
-        onConfirm: notifier.confirmRecognition,
-        onDiscard: notifier.discardRecognition,
-        onEdit: onEditPendingText,
+        onConfirm: widget.notifier.confirmRecognition,
+        onDiscard: widget.notifier.discardRecognition,
+        onEdit: widget.onEditPendingText,
       ),
     );
   }
 
 //___________________
   void _handleStart(Offset point) {
-    switch (state.currentTool) {
+    switch (widget.state.currentTool) {
       case CanvasTool.magic:
         return;
 
       case CanvasTool.lasso:
-        notifier.selectAt(point);
+        widget.notifier.selectAt(point);
         return;
 
       case CanvasTool.eraser:
-        notifier.startErase(point);
+        final scale = widget.transformationController.value.getMaxScaleOnAxis();
+        widget.notifier.startErase(
+          point,
+          eraserRadius: 14 / scale,
+        );
         return;
 
       default:
-        notifier.startStroke(point);
+        widget.notifier.startStroke(point);
     }
   }
 
 //___________________
   void _handleUpdate(Offset point) {
-    switch (state.currentTool) {
+    switch (widget.state.currentTool) {
       case CanvasTool.magic:
         return;
 
       case CanvasTool.lasso:
-        notifier.updateSelection(point);
+        widget.notifier.updateSelection(point);
         return;
 
       case CanvasTool.eraser:
-        notifier.eraseAt(point);
+        final scale = widget.transformationController.value.getMaxScaleOnAxis();
+        widget.notifier.eraseAt(
+          point,
+          eraserRadius: 14 / scale,
+        );
         return;
 
       default:
-        notifier.addPoint(point);
+        widget.notifier.addPoint(point);
     }
   }
 
 //___________________
   void _handleEnd() {
-    switch (state.currentTool) {
+    switch (widget.state.currentTool) {
       case CanvasTool.magic:
         return;
 
       case CanvasTool.lasso:
-        notifier.endSelection();
+        widget.notifier.endSelection();
         return;
 
       default:
-        notifier.endStroke();
+        widget.notifier.endStroke();
     }
   }
-
-//___________________
 }

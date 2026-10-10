@@ -31,14 +31,16 @@ class DrawingCanvas extends StatelessWidget {
       onPanStart: (details) => onStart(details.localPosition),
       onPanUpdate: (details) => onUpdate(details.localPosition),
       onPanEnd: (_) => onEnd(),
-      child: CustomPaint(
-        size: Size.infinite,
-        painter: _CanvasPainter(
-          strokes: strokes,
-          blocks: blocks,
-          selectedBlockIds: selectedBlockIds,
-          selectedStrokeIds: selectedStrokeIds,
-          marqueeRect: marqueeRect,
+      child: RepaintBoundary(
+        child: CustomPaint(
+          size: Size.infinite,
+          painter: _CanvasPainter(
+            strokes: strokes,
+            blocks: blocks,
+            selectedBlockIds: selectedBlockIds,
+            selectedStrokeIds: selectedStrokeIds,
+            marqueeRect: marqueeRect,
+          ),
         ),
       ),
     );
@@ -68,7 +70,7 @@ class _CanvasPainter extends CustomPainter {
 
     for (final block in blocks) {
       if (block is InkBlock) _drawStrokes(canvas, block.strokes);
-      if (block is TextBlock) _drawText(canvas, block);
+      if (block is TextBlock) _drawText(canvas, size, block);
     }
     _drawStrokes(canvas, strokes);
 
@@ -83,7 +85,7 @@ class _CanvasPainter extends CustomPainter {
 
     for (final block in blocks) {
       if (selectedBlockIds.contains(block.id)) {
-        _drawSelectionOutline(canvas, _blockBounds(block));
+        _drawSelectionOutline(canvas, _blockBounds(block, size));
       }
     }
 
@@ -131,70 +133,79 @@ class _CanvasPainter extends CustomPainter {
   //     canvas.drawPath(path, paint);
   //   }
   // }
-void _drawStrokes(Canvas canvas, List<Stroke> list) {
-  for (final stroke in list) {
-    if (stroke.points.length < 2) continue;
+  void _drawStrokes(Canvas canvas, List<Stroke> list) {
+    for (final stroke in list) {
+      if (stroke.points.length < 2) continue;
 
-    final paint = Paint()
-      ..color = Color(stroke.colorValue)
-      ..strokeWidth = stroke.strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke
-      ..isAntiAlias = true;
+      final paint = Paint()
+        ..color = Color(stroke.colorValue)
+        ..strokeWidth = stroke.strokeWidth
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..style = PaintingStyle.stroke
+        ..isAntiAlias = true;
 
-    final points = stroke.points
-        .map((p) => Offset(p.x, p.y))
-        .toList();
+      final points = stroke.points.map((p) => Offset(p.x, p.y)).toList();
 
-    final path = Path();
+      final path = Path();
 
-    path.moveTo(points.first.dx, points.first.dy);
+      path.moveTo(points.first.dx, points.first.dy);
 
-    if (points.length == 2) {
-      path.lineTo(points.last.dx, points.last.dy);
-      canvas.drawPath(path, paint);
-      continue;
-    }
+      if (points.length == 2) {
+        path.lineTo(points.last.dx, points.last.dy);
+        canvas.drawPath(path, paint);
+        continue;
+      }
 
-    // Smooth the stroke using quadratic Bézier curves.
-    for (int i = 1; i < points.length - 1; i++) {
-      final current = points[i];
-      final next = points[i + 1];
+      // Smooth the stroke using quadratic Bézier curves.
+      for (int i = 1; i < points.length - 1; i++) {
+        final current = points[i];
+        final next = points[i + 1];
 
-      final midpoint = Offset(
-        (current.dx + next.dx) / 2,
-        (current.dy + next.dy) / 2,
-      );
+        final midpoint = Offset(
+          (current.dx + next.dx) / 2,
+          (current.dy + next.dy) / 2,
+        );
+
+        path.quadraticBezierTo(
+          current.dx, // يتحكم في الانحناء
+          current.dy,
+          midpoint.dx, //اين ينتهي الانحناء
+          midpoint.dy,
+        );
+      }
+
+      // Finish at the last point.
+      final last = points.last;
+      final previous = points[points.length - 2];
 
       path.quadraticBezierTo(
-        current.dx,// يتحكم في الانحناء
-        current.dy,
-        midpoint.dx,//اين ينتهي الانحناء
-        midpoint.dy,
+        previous.dx,
+        previous.dy,
+        last.dx,
+        last.dy,
       );
+
+      canvas.drawPath(path, paint);
     }
+  }
 
-    // Finish at the last point.
-    final last = points.last;
-    final previous = points[points.length - 2];
+  void _drawText(Canvas canvas, Size size, TextBlock block) {
+    final availableWidth = (size.width - block.x).clamp(0.0, double.infinity);
 
-    path.quadraticBezierTo(
-      previous.dx,
-      previous.dy,
-      last.dx,
-      last.dy,
+    final painter = _textPainterFor(
+      block,
+      maxWidth: availableWidth,
     );
 
-    canvas.drawPath(path, paint);
-  }
-}
-  void _drawText(Canvas canvas, TextBlock block) {
-    _textPainterFor(block).paint(canvas, Offset(block.x, block.y));
+    painter.paint(
+      canvas,
+      Offset(block.x, block.y),
+    );
   }
 
-
-  TextPainter _textPainterFor(TextBlock block) {
+  TextPainter _textPainterFor(TextBlock block,
+      {double maxWidth = double.infinity}) {
     final painter = TextPainter(
       text: TextSpan(
         text: block.text,
@@ -206,22 +217,43 @@ void _drawStrokes(Canvas canvas, List<Stroke> list) {
       ),
       textDirection: TextDirection.ltr,
     );
-    painter.layout(maxWidth: block.width > 0 ? block.width : 220);
+    painter.layout(maxWidth: maxWidth); //block.width > 0 ? block.width : 220);
     return painter;
   }
 
   // ---- حدود العناصر (لإطار التحديد) ----
 
-  Rect _blockBounds(ContentBlock block) {
+  Rect _blockBounds(
+    ContentBlock block,
+    Size size,
+  ) {
     if (block is InkBlock) {
       return _strokesBounds(block.strokes) ??
           Rect.fromLTWH(block.x, block.y, 0, 0);
     }
+
     if (block is TextBlock) {
-      final painter = _textPainterFor(block);
-      return Rect.fromLTWH(block.x, block.y, painter.width, painter.height);
+      final availableWidth = (size.width - block.x).clamp(0.0, double.infinity);
+
+      final painter = _textPainterFor(
+        block,
+        maxWidth: availableWidth,
+      );
+
+      return Rect.fromLTWH(
+        block.x,
+        block.y,
+        painter.width,
+        painter.height,
+      );
     }
-    return Rect.fromLTWH(block.x, block.y, block.width, block.height);
+
+    return Rect.fromLTWH(
+      block.x,
+      block.y,
+      block.width,
+      block.height,
+    );
   }
 
   Rect? _strokesBounds(List<Stroke> list) {

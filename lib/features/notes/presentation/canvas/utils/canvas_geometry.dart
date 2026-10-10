@@ -5,12 +5,56 @@ import '../../../domain/entities/stroke.dart';
 class CanvasGeometry {
   const CanvasGeometry._();
 
-  static Rect blockRect(ContentBlock block) {
+  // static Rect blockRect(ContentBlock block) {
+  //   return Rect.fromLTWH(
+  //     block.x,
+  //     block.y,
+  //     block.width,
+  //     block.height,
+  //   );
+  // }
+  static Rect blockRect(
+    ContentBlock block, {
+    double maxWidth = double.infinity,
+  }) {
+    if (block is TextBlock) {
+      return textBlockRect(
+        block,
+        maxWidth: maxWidth,
+      );
+    }
+
     return Rect.fromLTWH(
       block.x,
       block.y,
       block.width,
       block.height,
+    );
+  }
+
+  static Rect textBlockRect(
+    TextBlock block, {
+    double maxWidth = double.infinity,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: block.text,
+        style: TextStyle(
+          fontFamily: block.fontFamily,
+          fontSize: block.fontSize,
+          color: Color(block.colorValue),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+
+    painter.layout(maxWidth: maxWidth);
+
+    return Rect.fromLTWH(
+      block.x,
+      block.y,
+      painter.width,
+      painter.height,
     );
   }
 
@@ -114,9 +158,7 @@ class CanvasGeometry {
 
       final rect = blockRect(block);
 
-      result = result == null
-          ? rect
-          : result.expandToInclude(rect);
+      result = result == null ? rect : result.expandToInclude(rect);
     }
 
     final strokeBounds = selectedStrokesBounds(
@@ -125,9 +167,8 @@ class CanvasGeometry {
     );
 
     if (strokeBounds != null) {
-      result = result == null
-          ? strokeBounds
-          : result.expandToInclude(strokeBounds);
+      result =
+          result == null ? strokeBounds : result.expandToInclude(strokeBounds);
     }
 
     return result;

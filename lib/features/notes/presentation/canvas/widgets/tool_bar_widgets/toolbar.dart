@@ -15,6 +15,7 @@ class CanvasToolbar extends StatefulWidget {
   final VoidCallback onRedo;
   final VoidCallback onClear;
   final VoidCallback? onConvert;
+  final VoidCallback? onConvertUnavailable;
   final VoidCallback onAddText;
   final VoidCallback? onEditText;
   final bool canUndo;
@@ -27,6 +28,9 @@ class CanvasToolbar extends StatefulWidget {
   final ValueChanged<double> onSliderChanged;
   final ValueChanged<double>? onSliderChangeEnd;
   final ValueChanged<CanvasTool> onToolChanged;
+  final VoidCallback onFitPage;
+  final bool showColor;
+  final bool showSize;
 
   const CanvasToolbar({
     super.key,
@@ -40,6 +44,7 @@ class CanvasToolbar extends StatefulWidget {
     required this.onRedo,
     required this.onClear,
     this.onConvert,
+    this.onConvertUnavailable,
     required this.onAddText,
     this.onEditText,
     required this.canUndo,
@@ -52,6 +57,9 @@ class CanvasToolbar extends StatefulWidget {
     required this.onSliderChanged,
     this.onSliderChangeEnd,
     required this.onToolChanged,
+    required this.onFitPage,
+    required this.showColor,
+    required this.showSize,
   });
 
   @override
@@ -59,7 +67,7 @@ class CanvasToolbar extends StatefulWidget {
 }
 
 class _CanvasToolbarState extends State<CanvasToolbar> {
-  bool _showAdvancedControls = true;
+  bool _showAdvancedControls = false;
 
   final ScrollController _toolsScrollController = ScrollController();
   final ScrollController _colorsScrollController = ScrollController();
@@ -73,6 +81,7 @@ class _CanvasToolbarState extends State<CanvasToolbar> {
 
   @override
   Widget build(BuildContext context) {
+    final hasAdvancedControls = widget.showColor || widget.showSize;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -90,6 +99,7 @@ class _CanvasToolbarState extends State<CanvasToolbar> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _ToolsRow(
+                  hasAdvancedControls: hasAdvancedControls,
                   showAdvancedControls: _showAdvancedControls,
                   currentTool: widget.currentTool,
                   canUndo: widget.canUndo,
@@ -103,6 +113,7 @@ class _CanvasToolbarState extends State<CanvasToolbar> {
                     });
                   },
                   onToolChanged: widget.onToolChanged,
+                  onFitPage: widget.onFitPage,
                   onAddText: widget.onAddText,
                   onUndo: widget.onUndo,
                   onRedo: widget.onRedo,
@@ -111,22 +122,31 @@ class _CanvasToolbarState extends State<CanvasToolbar> {
                   onDeleteSelected: widget.onDeleteSelected,
                   onLanguageChanged: widget.onLanguageChanged,
                   onConvert: widget.onConvert,
+                  onConvertUnavailable: widget.onConvertUnavailable,
                   scrollController: _toolsScrollController,
                 ),
-                if (_showAdvancedControls) ...[
-                  const SizedBox(height: 4),
-                  _AdvancedControls(
-                    isNarrow: isNarrow,
-                    activeColor: widget.activeColor,
-                    sliderValue: widget.sliderValue,
-                    sliderMin: widget.sliderMin,
-                    sliderMax: widget.sliderMax,
-                    onColorChanged: widget.onColorChanged,
-                    onSliderChanged: widget.onSliderChanged,
-                    onSliderChangeEnd: widget.onSliderChangeEnd,
-                    scrollController: _colorsScrollController,
-                  ),
-                ],
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeInOut,
+                  child: _showAdvancedControls
+                      ? Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: _AdvancedControls(
+                            showColor: widget.showColor,
+                            showSize: widget.showSize,
+                            isNarrow: isNarrow,
+                            activeColor: widget.activeColor,
+                            sliderValue: widget.sliderValue,
+                            sliderMin: widget.sliderMin,
+                            sliderMax: widget.sliderMax,
+                            onColorChanged: widget.onColorChanged,
+                            onSliderChanged: widget.onSliderChanged,
+                            onSliderChangeEnd: widget.onSliderChangeEnd,
+                            scrollController: _colorsScrollController,
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
               ],
             );
           },
@@ -148,6 +168,7 @@ class _ToolsRow extends StatelessWidget {
 
   final VoidCallback onToggleAdvanced;
   final ValueChanged<CanvasTool> onToolChanged;
+  final VoidCallback onFitPage;
   final VoidCallback onAddText;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
@@ -156,7 +177,9 @@ class _ToolsRow extends StatelessWidget {
   final VoidCallback onDeleteSelected;
   final ValueChanged<String> onLanguageChanged;
   final VoidCallback? onConvert;
+  final VoidCallback? onConvertUnavailable;
   final ScrollController scrollController;
+  final bool hasAdvancedControls;
 
   const _ToolsRow({
     required this.showAdvancedControls,
@@ -168,6 +191,7 @@ class _ToolsRow extends StatelessWidget {
     required this.selectedLanguage,
     required this.onToggleAdvanced,
     required this.onToolChanged,
+    required this.onFitPage,
     required this.onAddText,
     required this.onUndo,
     required this.onRedo,
@@ -176,7 +200,9 @@ class _ToolsRow extends StatelessWidget {
     required this.onDeleteSelected,
     required this.onLanguageChanged,
     required this.onConvert,
+    required this.onConvertUnavailable,
     required this.scrollController,
+    required this.hasAdvancedControls,
   });
 
   @override
@@ -193,43 +219,49 @@ class _ToolsRow extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (!showAdvancedControls)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.unfold_more, size: 14),
-                    SizedBox(width: 4),
-                    Text(
-                      'More tools',
-                      style: TextStyle(fontSize: 11),
-                    ),
-                  ],
+            if (hasAdvancedControls)
+              InkWell(
+                onTap: onToggleAdvanced,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                          showAdvancedControls
+                              ? Icons.unfold_less
+                              : Icons.unfold_more,
+                          size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        showAdvancedControls ? 'Less tools' : 'More tools',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            IconButton(
-              tooltip: showAdvancedControls
-                  ? 'Hide advanced controls'
-                  : 'Show advanced controls',
-              onPressed: onToggleAdvanced,
-              icon: Icon(
-                showAdvancedControls
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
-                size: 20,
-              ),
-            ),
             const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.fit_screen),
+              onPressed: onFitPage,
+              tooltip: 'Fit page',
+            ),
             _ToolButton(
               icon: Icons.back_hand_outlined,
+              isSelected: currentTool == CanvasTool.pan,
+              onTap: () => onToolChanged(CanvasTool.pan),
+              tooltip: 'Pan / Zoom',
+            ),
+            _ToolButton(
+              icon: Icons.highlight_alt,
               isSelected: currentTool == CanvasTool.lasso,
               onTap: () => onToolChanged(CanvasTool.lasso),
               tooltip: 'Select',
@@ -305,6 +337,7 @@ class _ToolsRow extends StatelessWidget {
                 selectedLanguage: selectedLanguage,
                 onLanguageChanged: onLanguageChanged,
                 onConvert: onConvert,
+                onConvertUnavailable: onConvertUnavailable,
               ),
           ],
         ),
@@ -320,6 +353,8 @@ class _AdvancedControls extends StatelessWidget {
   final double sliderValue;
   final double sliderMin;
   final double sliderMax;
+  final bool showColor;
+  final bool showSize;
 
   final ValueChanged<Color> onColorChanged;
   final ValueChanged<double> onSliderChanged;
@@ -336,10 +371,18 @@ class _AdvancedControls extends StatelessWidget {
     required this.onSliderChanged,
     required this.onSliderChangeEnd,
     required this.scrollController,
+    required this.showColor,
+    required this.showSize,
+    // super.key,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Nothing to show for this tool/context.
+    if (!showColor && !showSize) {
+      return const SizedBox.shrink();
+    }
+
     final colorControls = [
       ...[
         Colors.black,
@@ -374,32 +417,37 @@ class _AdvancedControls extends StatelessWidget {
 
     if (isNarrow) {
       return Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Scrollbar(
-            controller: scrollController,
-            thumbVisibility: true,
-            thickness: 7,
-            radius: const Radius.circular(12),
-            child: SingleChildScrollView(
+          if (showColor)
+            Scrollbar(
               controller: scrollController,
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: colorControls,
+              thumbVisibility: true,
+              thickness: 7,
+              radius: const Radius.circular(12),
+              child: SingleChildScrollView(
+                controller: scrollController,
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: colorControls,
+                ),
               ),
             ),
-          ),
-          slider,
+          if (showSize) slider,
         ],
       );
     }
 
     return Row(
       children: [
-        ...colorControls,
-        const SizedBox(width: 16),
-        Expanded(child: slider),
+        if (showColor) ...colorControls,
+        if (showColor && showSize) const SizedBox(width: 16),
+        if (showSize)
+          Expanded(
+            child: slider,
+          ),
       ],
     );
   }
@@ -443,10 +491,12 @@ class _LanguageConvertGroup extends StatelessWidget {
   final String selectedLanguage;
   final ValueChanged<String> onLanguageChanged;
   final VoidCallback? onConvert;
+  final VoidCallback? onConvertUnavailable;
   const _LanguageConvertGroup({
     required this.selectedLanguage,
     required this.onLanguageChanged,
     required this.onConvert,
+    required this.onConvertUnavailable,
   });
   @override
   Widget build(BuildContext context) {
@@ -500,7 +550,13 @@ class _LanguageConvertGroup extends StatelessWidget {
           ),
           const SizedBox(width: 2),
           FilledButton.icon(
-            onPressed: onConvert,
+            onPressed: onConvert ?? onConvertUnavailable,
+            style: onConvert == null
+                ? FilledButton.styleFrom(
+                    backgroundColor: Colors.grey.shade300,
+                    foregroundColor: Colors.grey.shade600,
+                  )
+                : null,
             icon: const Icon(
               Icons.translate,
               size: 18,
@@ -528,18 +584,23 @@ class _ToolButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return IconButton(
-      icon: Icon(
-        icon,
-        color: isSelected ? theme.primaryColor : null,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        color: isSelected
+            ? theme.primaryColor.withOpacity(0.1)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
       ),
-      tooltip: tooltip,
-      onPressed: onTap,
-      style: isSelected
-          ? IconButton.styleFrom(
-              backgroundColor: theme.primaryColor.withOpacity(0.1),
-            )
-          : null,
+      child: IconButton(
+        icon: Icon(
+          icon,
+          color: isSelected ? theme.primaryColor : null,
+        ),
+        tooltip: tooltip,
+        onPressed: onTap,
+      ),
     );
   }
 }

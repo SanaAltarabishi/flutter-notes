@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freenotes_app/features/notes/presentation/canvas/widgets/canvas_area.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import 'canvas_provider.dart';
 import 'canvas_state.dart';
@@ -20,6 +21,15 @@ class CanvasPage extends ConsumerStatefulWidget {
 
 class _CanvasPageState extends ConsumerState<CanvasPage> {
   String _selectedLanguage = AppConstants.langArabic;
+  Size _viewportSize = Size.zero;
+  final TransformationController _transformationController =
+      TransformationController();
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +37,21 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
     final notifier = ref.read(canvasProvider(widget.pageId).notifier);
     final isHighlighter = canvasState.currentTool == CanvasTool.highlighter;
     final selectedText = canvasState.selectedTextBlock;
+
+    final isEraser = canvasState.currentTool == CanvasTool.eraser;
+    final isPan = canvasState.currentTool == CanvasTool.pan;
+
+    final showColor = !isPan &&
+        (selectedText != null ||
+            canvasState.currentTool == CanvasTool.pen ||
+            canvasState.currentTool == CanvasTool.highlighter ||
+            canvasState.currentTool == CanvasTool.magic);
+
+    final showSize = !isPan &&
+        (selectedText != null ||
+            canvasState.currentTool == CanvasTool.pen ||
+            canvasState.currentTool == CanvasTool.highlighter ||
+            canvasState.currentTool == CanvasTool.eraser);
 
     return Scaffold(
       appBar: CanvasAppBar(onSave: () async {
@@ -37,6 +62,8 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
       body: Column(
         children: [
           CanvasToolbar(
+            showColor: showColor,
+            showSize: showSize,
             currentTool: canvasState.currentTool,
             activeColor: selectedText != null
                 ? Color(selectedText.colorValue)
@@ -45,11 +72,24 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
                     : canvasState.currentColor),
             sliderValue: selectedText != null
                 ? selectedText.fontSize
-                : (isHighlighter
-                    ? canvasState.highlighterWidth
-                    : canvasState.strokeWidth),
-            sliderMin: selectedText != null ? 10 : 1,
-            sliderMax: selectedText != null ? 48 : (isHighlighter ? 30 : 10),
+                : isEraser
+                    ? canvasState.eraserSize
+                    : isHighlighter
+                        ? canvasState.highlighterWidth
+                        : canvasState.strokeWidth,
+            sliderMin: selectedText != null
+                ? 10
+                : isEraser
+                    ? 5
+                    : 1,
+
+            sliderMax: selectedText != null
+                ? 48
+                : isEraser
+                    ? 50
+                    : isHighlighter
+                        ? 30
+                        : 10,
             selectedLanguage: _selectedLanguage,
             canUndo: canvasState.canUndo,
             canRedo: canvasState.canRedo,
@@ -65,6 +105,18 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
             onConvert: canvasState.hasStrokeSelection
                 ? () => notifier.convertToText(language: _selectedLanguage)
                 : null,
+            onConvertUnavailable: () {
+              ScaffoldMessenger.of(context)
+                ..hideCurrentSnackBar()
+                ..showSnackBar(
+                  SnackBar(
+                    backgroundColor: AppColors.error,
+                    content: const Text(
+                      'Select handwriting before converting it to text.',
+                    ),
+                  ),
+                );
+            },
             onAddText: () => _addTextAtCenter(notifier, canvasState),
             onEditText: selectedText == null
                 ? null
@@ -78,9 +130,11 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
             onColorChanged: notifier.setColor, //todo :
             onSliderChanged: selectedText != null
                 ? notifier.previewSelectedTextFontSize
-                : (isHighlighter
-                    ? notifier.setHighlighterWidth
-                    : notifier.setStrokeWidth),
+                : isEraser
+                    ? notifier.setEraserSize
+                    : isHighlighter
+                        ? notifier.setHighlighterWidth
+                        : notifier.setStrokeWidth,
             onSliderChangeEnd: selectedText != null
                 ? (_) => notifier.commitSelectedTextFontSize()
                 : null,
@@ -88,6 +142,7 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
               setState(() => _selectedLanguage = language);
             },
             onToolChanged: notifier.setTool,
+            onFitPage: _fitPage,
           ),
           if (canvasState.error != null)
             CanvasErrorBanner(
@@ -98,6 +153,8 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
             child: CanvasArea(
               state: canvasState,
               notifier: notifier,
+              transformationController: _transformationController,
+              onViewportSizeChanged: _handleViewportSizeChanged,
               selectedLanguage: _selectedLanguage,
               onEditPendingText: () {
                 showTextDialog(
@@ -115,11 +172,27 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
     );
   }
 
+  void _handleViewportSizeChanged(Size size) {
+    if (size != _viewportSize && mounted) {
+      setState(() => _viewportSize = size);
+    }
+  }
+
+  void _fitPage() {
+    if (_viewportSize.width <= 0) return;
+    final scale = _viewportSize.width / AppConstants.pageWidth;
+    _transformationController.value = Matrix4.diagonal3Values(
+      scale,
+      scale,
+      1,
+    );
+  }
+
   void _addTextAtCenter(CanvasNotifier notifier, CanvasState state) {
-    final size = state.canvasSize;
-    final center = size.width > 0 && size.height > 0
-        ? Offset(size.width / 2 - 110, size.height / 2 - 20)
-        : const Offset(60, 60);
+    final viewportCenter = _transformationController.toScene(
+      Offset(_viewportSize.width / 2, _viewportSize.height / 2),
+    );
+    final center = Offset(viewportCenter.dx - 110, viewportCenter.dy - 20);
 
     showTextDialog(
       context: context,
