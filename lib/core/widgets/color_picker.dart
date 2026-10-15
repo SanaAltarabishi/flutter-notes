@@ -1,5 +1,7 @@
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:freenotes_app/core/constants/app_colors.dart';
+import 'package:freenotes_app/core/constants/app_strings.dart';
 
 class ColorPicker extends StatelessWidget {
   final Color selectedColor;
@@ -17,7 +19,7 @@ class ColorPicker extends StatelessWidget {
     final pickedColor = await showColorPickerDialog(
       context,
       selectedColor,
-      title: const Text('Choose cover color'),
+      title: const Text(AppStrings.chooseCoverColor),
       showColorCode: true,
       showColorName: true,
       enableOpacity: false,
@@ -40,7 +42,7 @@ class ColorPicker extends StatelessWidget {
       return IconButton(
         onPressed: () => _pickColor(context),
         icon: const Icon(Icons.add),
-        tooltip: 'Choose color',
+        tooltip: AppStrings.chooseColor,
         style: IconButton.styleFrom(
           fixedSize: const Size(32, 32),
           padding: EdgeInsets.zero,
@@ -49,8 +51,8 @@ class ColorPicker extends StatelessWidget {
           foregroundColor:
               ThemeData.estimateBrightnessForColor(selectedColor) ==
                       Brightness.dark
-                  ? Colors.white
-                  : Colors.black,
+                  ? AppColors.white
+                  : AppColors.black,
         ),
       );
     }
@@ -86,12 +88,12 @@ class ColorPicker extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Cover color',
+                    AppStrings.coverColor,
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    'Tap to choose any color',
+                    AppStrings.tapToChooseColor,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],

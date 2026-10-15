@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:freenotes_app/core/constants/app_strings.dart';
 import '../../../../core/errors/failures.dart';
 import '../../domain/entities/book.dart';
 import '../../presentation/pages/pages_page.dart';
@@ -30,13 +30,11 @@ class BooksPage extends ConsumerWidget {
         ref.read(booksProvider.notifier).clearError();
       }
     });
-
     final booksAsync = ref.watch(booksProvider);
-
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('My Books'),
+        title: const Text(AppStrings.myBooks),
       ),
       body: booksAsync.when(
         loading: () => const Center(
@@ -54,7 +52,7 @@ class BooksPage extends ConsumerWidget {
           if (state.books.isEmpty) {
             return const Center(
               child: Text(
-                'No books yet. Create one!',
+                AppStrings.emptyBook,
               ),
             );
           }
@@ -80,11 +78,12 @@ class BooksPage extends ConsumerWidget {
           _showBookForm(context);
         },
         icon: const Icon(Icons.add),
-        label: const Text('New Book'),
+        label: const Text(AppStrings.newBook),
       ),
     );
   }
 
+//____________________________________________
   void _showBookForm(
     BuildContext context, {
     Book? existingBook,
@@ -97,6 +96,7 @@ class BooksPage extends ConsumerWidget {
     );
   }
 
+//____________________________________________
   void _showBookOptions(
     BuildContext context,
     WidgetRef ref,
@@ -106,10 +106,9 @@ class BooksPage extends ConsumerWidget {
       context: context,
       builder: (_) {
         return BookOptionsSheet(
-          book: book,
+          //   book: book,
           onEdit: () {
             Navigator.pop(context);
-
             showDialog(
               context: context,
               builder: (_) => BookFormDialog(
@@ -119,7 +118,6 @@ class BooksPage extends ConsumerWidget {
           },
           onDelete: () {
             Navigator.pop(context);
-
             _showDeleteConfirmation(
               context,
               ref,
@@ -131,6 +129,7 @@ class BooksPage extends ConsumerWidget {
     );
   }
 
+//____________________________________________
   void _showDeleteConfirmation(
     BuildContext context,
     WidgetRef ref,
@@ -152,6 +151,7 @@ class BooksPage extends ConsumerWidget {
   }
 }
 
+//____________________________________________
 class _BooksGrid extends StatelessWidget {
   final List<Book> books;
   final ValueChanged<Book> onBookLongPress;

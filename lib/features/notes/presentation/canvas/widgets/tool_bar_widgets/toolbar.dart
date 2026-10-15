@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:freenotes_app/core/constants/app_colors.dart';
+import 'package:freenotes_app/core/constants/app_strings.dart';
 import 'package:freenotes_app/core/constants/app_constants.dart';
 import 'package:freenotes_app/core/widgets/color_picker.dart';
 import '../../canvas_state.dart';
@@ -85,9 +86,9 @@ class _CanvasToolbarState extends State<CanvasToolbar> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: AppColors.lightGrey,
         border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300),
+          bottom: BorderSide(color: AppColors.greyBorder),
         ),
       ),
       child: SafeArea(
@@ -130,7 +131,7 @@ class _CanvasToolbarState extends State<CanvasToolbar> {
                   curve: Curves.easeInOut,
                   child: _showAdvancedControls
                       ? Padding(
-                          padding: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.only(top: 10),
                           child: _AdvancedControls(
                             showColor: widget.showColor,
                             showSize: widget.showSize,
@@ -228,7 +229,7 @@ class _ToolsRow extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
+                    color: AppColors.greySurface,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Row(
@@ -241,7 +242,9 @@ class _ToolsRow extends StatelessWidget {
                           size: 14),
                       const SizedBox(width: 4),
                       Text(
-                        showAdvancedControls ? 'Less tools' : 'More tools',
+                        showAdvancedControls
+                            ? AppStrings.lessTools
+                            : AppStrings.moreTools,
                         style: const TextStyle(fontSize: 11),
                       ),
                     ],
@@ -252,79 +255,79 @@ class _ToolsRow extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.fit_screen),
               onPressed: onFitPage,
-              tooltip: 'Fit page',
+              tooltip: AppStrings.fitPage,
             ),
             _ToolButton(
               icon: Icons.back_hand_outlined,
               isSelected: currentTool == CanvasTool.pan,
               onTap: () => onToolChanged(CanvasTool.pan),
-              tooltip: 'Pan / Zoom',
+              tooltip: AppStrings.panZoom,
             ),
             _ToolButton(
               icon: Icons.highlight_alt,
               isSelected: currentTool == CanvasTool.lasso,
               onTap: () => onToolChanged(CanvasTool.lasso),
-              tooltip: 'Select',
+              tooltip: AppStrings.select,
             ),
             _ToolButton(
               icon: Icons.edit,
               isSelected: currentTool == CanvasTool.pen,
               onTap: () => onToolChanged(CanvasTool.pen),
-              tooltip: 'Pen',
+              tooltip: AppStrings.pen,
             ),
             _ToolButton(
               icon: Icons.highlight,
               isSelected: currentTool == CanvasTool.highlighter,
               onTap: () => onToolChanged(CanvasTool.highlighter),
-              tooltip: 'Highlighter',
+              tooltip: AppStrings.highlighter,
             ),
             _ToolButton(
               icon: Icons.cleaning_services_outlined,
               isSelected: currentTool == CanvasTool.eraser,
               onTap: () => onToolChanged(CanvasTool.eraser),
-              tooltip: 'Eraser',
+              tooltip: AppStrings.eraser,
             ),
             _ToolButton(
               icon: Icons.auto_awesome,
               isSelected: currentTool == CanvasTool.magic,
               onTap: () => onToolChanged(CanvasTool.magic),
-              tooltip: 'Magic pointer',
+              tooltip: AppStrings.magicPointer,
             ),
             IconButton(
               icon: const Icon(Icons.text_fields),
               onPressed: onAddText,
-              tooltip: 'Add text',
+              tooltip: AppStrings.addText,
             ),
             const VerticalDivider(width: 1),
             IconButton(
               icon: const Icon(Icons.undo),
               onPressed: canUndo ? onUndo : null,
-              tooltip: 'Undo',
+              tooltip: AppStrings.undo,
             ),
             IconButton(
               icon: const Icon(Icons.redo),
               onPressed: canRedo ? onRedo : null,
-              tooltip: 'Redo',
+              tooltip: AppStrings.redo,
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
               onPressed: onClear,
-              tooltip: 'Clear drawing',
+              tooltip: AppStrings.clearDrawing,
             ),
             if (onEditText != null)
               IconButton(
                 icon: const Icon(Icons.edit_note),
                 onPressed: onEditText,
-                tooltip: 'Edit text',
+                tooltip: AppStrings.editText,
               ),
             if (hasSelection)
               IconButton(
                 icon: const Icon(
                   Icons.delete_forever_outlined,
-                  color: Colors.red,
+                  color: AppColors.red,
                 ),
                 onPressed: onDeleteSelected,
-                tooltip: 'Delete selected',
+                tooltip: AppStrings.deleteSelected,
               ),
             if (isRecognizing)
               const SizedBox(
@@ -385,13 +388,13 @@ class _AdvancedControls extends StatelessWidget {
 
     final colorControls = [
       ...[
-        Colors.black,
-        Colors.red,
-        Colors.blue,
-        Colors.green,
-        Colors.orange,
-        Colors.purple,
-        Colors.yellow,
+        AppColors.black,
+        AppColors.red,
+        AppColors.blue,
+        AppColors.green,
+        AppColors.orange,
+        AppColors.purple,
+        AppColors.yellow,
       ].map(
         (color) => _ColorDot(
           color: color,
@@ -503,27 +506,27 @@ class _LanguageConvertGroup extends StatelessWidget {
     final isArabic = selectedLanguage == AppConstants.langArabic;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.grey.shade300,
+          color: AppColors.greyBorder,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           PopupMenuButton<String>(
-            tooltip: 'Recognition language',
+            tooltip: AppStrings.recognitionLanguage,
             initialValue: selectedLanguage,
             onSelected: onLanguageChanged,
             itemBuilder: (context) => const [
               PopupMenuItem(
                 value: AppConstants.langArabic,
-                child: Text('Arabic'),
+                child: Text(AppStrings.arabicLanguage),
               ),
               PopupMenuItem(
                 value: AppConstants.langEnglish,
-                child: Text('English'),
+                child: Text(AppStrings.englishLanguage),
               ),
             ],
             child: Padding(
@@ -535,7 +538,7 @@ class _LanguageConvertGroup extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    isArabic ? 'AR' : 'EN',
+                    isArabic ? AppStrings.arabicCode : AppStrings.englishCode,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                     ),
@@ -553,15 +556,15 @@ class _LanguageConvertGroup extends StatelessWidget {
             onPressed: onConvert ?? onConvertUnavailable,
             style: onConvert == null
                 ? FilledButton.styleFrom(
-                    backgroundColor: Colors.grey.shade300,
-                    foregroundColor: Colors.grey.shade600,
+                    backgroundColor: AppColors.greyBorder,
+                    foregroundColor: AppColors.greyText,
                   )
                 : null,
             icon: const Icon(
               Icons.translate,
               size: 18,
             ),
-            label: const Text('Convert'),
+            label: const Text(AppStrings.convert),
           ),
         ],
       ),
@@ -590,7 +593,7 @@ class _ToolButton extends StatelessWidget {
       decoration: BoxDecoration(
         color: isSelected
             ? theme.primaryColor.withOpacity(0.1)
-            : Colors.transparent,
+            : AppColors.transparent,
         borderRadius: BorderRadius.circular(12),
       ),
       child: IconButton(

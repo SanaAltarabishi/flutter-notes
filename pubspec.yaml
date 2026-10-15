@@ -23,6 +23,7 @@ dependencies:
   crypto: ^3.0.7
   fpdart: ^1.2.0
   flex_color_picker: ^3.8.0
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -31,3 +32,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon.png"
+  remove_alpha_ios: true

@@ -1,16 +1,16 @@
 import 'dart:convert';
+import '../../../../core/constants/app_colors.dart';
 import '../../domain/entities/content_block.dart';
 import 'stroke_model.dart';
 
 enum ShapeType { rectangle, oval, line, arrow }
-
 
 class ContentBlockModel {
   final String id;
   final String pageId;
   final String type;
   final int orderIndex;
-  final double x,y,width,height;
+  final double x, y, width, height;
   final String data; // JSON string
   final int createdAtMillis;
   final int updatedAtMillis;
@@ -101,7 +101,8 @@ class ContentBlockModel {
           height: height,
           text: decodedData['text'] as String? ?? '',
           fontFamily: decodedData['fontFamily'] as String? ?? 'Roboto',
-          colorValue: decodedData['colorValue'] as int? ?? 0xFF000000,
+          colorValue:
+              decodedData['colorValue'] as int? ?? AppColors.defaultInkValue,
           fontSize: (decodedData['fontSize'] as num?)?.toDouble() ?? 16.0,
           createdAt: createdAt,
           updatedAt: updatedAt,
@@ -130,6 +131,7 @@ class ContentBlockModel {
         );
     }
   }
+
 //__________________________________________________________
   Map<String, dynamic> toMap() => {
         'id': id,

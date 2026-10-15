@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_colors.dart';
 import '../../features/notes/domain/entities/content_block.dart';
 
 TextDirection textDirectionFor(String text) {
@@ -62,7 +63,7 @@ double measureTextHeight({
     text: text,
     fontFamily: fontFamily,
     fontSize: fontSize,
-    color: Colors.black,
+    color: AppColors.black,
     width: width,
   );
   return painter.height + 8;

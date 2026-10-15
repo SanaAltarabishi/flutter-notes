@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-
+import 'package:freenotes_app/core/constants/app_strings.dart';
+import '../../../../../core/constants/app_colors.dart';
 import '../../../domain/entities/book.dart';
 
 class DeleteBookDialog extends StatelessWidget {
@@ -15,25 +16,21 @@ class DeleteBookDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Delete book?'),
-
+      title: const Text(AppStrings.qDeleteBook),
       content: Text(
-        '"${book.title}" and all its pages '
-        'will be deleted.',
+        '"${book.title}" ${AppStrings.deleteBookMessage}',
       ),
-
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: const Text(AppStrings.cancel),
         ),
-
         FilledButton(
           style: FilledButton.styleFrom(
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
           onPressed: onConfirm,
-          child: const Text('Delete'),
+          child: const Text(AppStrings.delete),
         ),
       ],
     );

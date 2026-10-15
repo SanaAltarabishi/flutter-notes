@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freenotes_app/features/notes/presentation/canvas/widgets/canvas_area.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/constants/app_strings.dart';
 import 'canvas_provider.dart';
 import 'canvas_state.dart';
 import 'widgets/canvas_app_bar.dart';
@@ -112,7 +113,7 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
                   SnackBar(
                     backgroundColor: AppColors.error,
                     content: const Text(
-                      'Select handwriting before converting it to text.',
+                      AppStrings.selectHandwriting,
                     ),
                   ),
                 );
@@ -122,9 +123,9 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
                 ? null
                 : () => showTextDialog(
                       context: context,
-                      title: 'Edit text',
+                      title: AppStrings.editText,
                       initial: selectedText.text,
-                      confirmLabel: 'Save',
+                      confirmLabel: AppStrings.save,
                       onSubmit: notifier.editSelectedText,
                     ),
             onColorChanged: notifier.setColor, //todo :
@@ -159,9 +160,9 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
               onEditPendingText: () {
                 showTextDialog(
                   context: context,
-                  title: 'Fix recognized text',
+                  title: AppStrings.fixRecognizedText,
                   initial: canvasState.pendingRecognizedText!,
-                  confirmLabel: 'Update',
+                  confirmLabel: AppStrings.update,
                   onSubmit: notifier.updatePendingText,
                 );
               },
@@ -196,9 +197,9 @@ class _CanvasPageState extends ConsumerState<CanvasPage> {
 
     showTextDialog(
       context: context,
-      title: 'Add text',
+      title: AppStrings.addText,
       initial: '',
-      confirmLabel: 'Add',
+      confirmLabel: AppStrings.add,
       onSubmit: (text) => notifier.addTextBlock(text, center),
     );
   }

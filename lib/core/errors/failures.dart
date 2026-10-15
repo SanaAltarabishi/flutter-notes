@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:freenotes_app/core/constants/app_strings.dart';
 
 abstract class Failure extends Equatable {
   final String message;
@@ -10,21 +11,21 @@ abstract class Failure extends Equatable {
 }
 
 class ServerFailure extends Failure {
-  const ServerFailure([super.message = 'Server error occurred']);
+  const ServerFailure([super.message = AppStrings.serverError]);
 }
 
 class CacheFailure extends Failure {
-  const CacheFailure([super.message = 'Cache error occurred']);
+  const CacheFailure([super.message = AppStrings.cacheError]);
 }
 
 class NetworkFailure extends Failure {
-  const NetworkFailure([super.message = 'Please check your internet connection']);
+  const NetworkFailure([super.message = AppStrings.networkError]);
 }
 
 class RecognitionFailure extends Failure {
-  const RecognitionFailure([super.message = 'Recognition failed']);
+  const RecognitionFailure([super.message = AppStrings.recognitionFailed]);
 }
 
 class ValidationFailure extends Failure {
-  const ValidationFailure([super.message = 'Invalid input']);
+  const ValidationFailure([super.message = AppStrings.invalidInput]);
 }

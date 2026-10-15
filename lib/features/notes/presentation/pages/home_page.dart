@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:freenotes_app/core/constants/app_colors.dart';
+import 'package:freenotes_app/core/constants/app_strings.dart';
 import '../books/books_page.dart';
 
 class HomePage extends StatelessWidget {
@@ -19,11 +20,11 @@ class HomePage extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             const Text(
-              'FreeNotes',
+              AppStrings.appName,
               style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            const Text('Handwriting note-taking app'),
+            const Text(AppStrings.appTagline),
             const SizedBox(height: 48),
             FilledButton.icon(
               onPressed: () => Navigator.push(
@@ -31,7 +32,7 @@ class HomePage extends StatelessWidget {
                 MaterialPageRoute(builder: (_) => const BooksPage()),
               ),
               icon: const Icon(Icons.book),
-              label: const Text('My Books'),
+              label: const Text(AppStrings.myBooks),
             ),
           ],
         ),

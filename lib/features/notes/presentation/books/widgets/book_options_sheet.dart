@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import '../../../domain/entities/book.dart';
+import 'package:freenotes_app/core/constants/app_colors.dart';
+import 'package:freenotes_app/core/constants/app_strings.dart';
 
 class BookOptionsSheet extends StatelessWidget {
-  final Book book;
+ // final Book book;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const BookOptionsSheet({
     super.key,
-    required this.book,
+ //   required this.book,
     required this.onEdit,
     required this.onDelete,
   });
@@ -23,18 +24,18 @@ class BookOptionsSheet extends StatelessWidget {
             leading: const Icon(
               Icons.edit_outlined,
             ),
-            title: const Text('Edit'),
+            title: const Text(AppStrings.edit),
             onTap: onEdit,
           ),
           ListTile(
-            leading: const Icon(
+            leading: Icon(
               Icons.delete_outline,
-              color: Colors.red,
+              color: AppColors.error,
             ),
-            title: const Text(
-              'Delete',
+            title: Text(
+              AppStrings.delete,
               style: TextStyle(
-                color: Colors.red,
+                color: AppColors.error,
               ),
             ),
             onTap: onDelete,

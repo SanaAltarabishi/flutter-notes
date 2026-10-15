@@ -16,12 +16,12 @@ class CanvasAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      title: const Text(Appstrings.appName),
+      title: const Text(AppStrings.appName),
       actions: [
         IconButton(
           icon: const Icon(Icons.save),
           onPressed: onSave,
-          tooltip: Appstrings.saveDrawing,
+          tooltip: AppStrings.saveDrawing,
         ),
       ],
     );

@@ -37,7 +37,7 @@ class CanvasState {
     this.error,
     this.strokes = const [],
     this.currentColor = AppColors.black,
-    this.highlighterColor = Colors.yellow,
+    this.highlighterColor = AppColors.yellow,
     this.strokeWidth = 3.0,
     this.highlighterWidth = 12.0,
     this.currentTool = CanvasTool.pan,

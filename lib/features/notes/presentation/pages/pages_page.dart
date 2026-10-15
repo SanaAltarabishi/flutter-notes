@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:freenotes_app/core/constants/app_strings.dart';
 import 'package:freenotes_app/features/notes/presentation/books/widgets/retry_widget.dart';
 import 'package:freenotes_app/features/notes/presentation/canvas/canvas_page.dart';
 import 'package:freenotes_app/features/notes/presentation/pages/pages_provider.dart';
@@ -80,7 +81,7 @@ class PagesPage extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _createPage(context, ref, book.id),
         icon: const Icon(Icons.add),
-        label: const Text('New page'),
+        label: const Text(AppStrings.newPage),
       ),
     );
   }
@@ -94,7 +95,7 @@ Future<void> _createPage(
 ) async {
   final name = await showDialog<String>(
     context: context,
-    builder: (_) => const _PageNameDialog(title: 'Name your page'),
+    builder: (_) => const _PageNameDialog(title: AppStrings.nameYourPage),
   );
 
   if (name == null || !context.mounted) {
@@ -114,9 +115,9 @@ Future<void> _editPageName(
   final name = await showDialog<String>(
     context: context,
     builder: (_) => _PageNameDialog(
-      title: 'Edit page name',
+      title: AppStrings.editPageName,
       initialName: page.name,
-      confirmLabel: 'Save',
+      confirmLabel: AppStrings.save,
     ),
   );
 
@@ -138,7 +139,7 @@ class _PageNameDialog extends StatefulWidget {
   const _PageNameDialog({
     required this.title,
     this.initialName = '',
-    this.confirmLabel = 'Create',
+    this.confirmLabel = AppStrings.create,
   });
 
   @override
@@ -172,12 +173,12 @@ class _PageNameDialogState extends State<_PageNameDialog> {
           autofocus: true,
           textCapitalization: TextCapitalization.sentences,
           decoration: const InputDecoration(
-            labelText: 'Page name',
-            hintText: 'e.g. Meeting notes',
+            labelText: AppStrings.pageName,
+            hintText: AppStrings.pageNameHint,
           ),
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
-              return 'Enter a page name';
+              return AppStrings.enterPageName;
             }
             return null;
           },
@@ -186,7 +187,7 @@ class _PageNameDialogState extends State<_PageNameDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: const Text(AppStrings.cancel),
         ),
         FilledButton(
           onPressed: () {
@@ -212,18 +213,18 @@ Future<void> _confirmDelete(
     context: context,
     builder: (context) {
       return AlertDialog(
-        title: const Text('Delete page?'),
+        title: const Text(AppStrings.deletePage),
         content: const Text(
-          'This page and its drawings will be permanently deleted.',
+          AppStrings.deletePageMessage,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text(AppStrings.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: const Text(AppStrings.delete),
           ),
         ],
       );
@@ -256,12 +257,12 @@ class _EmptyPagesView extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              'No pages yet',
+              AppStrings.noPagesYet,
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
             Text(
-              'Create your first page and start writing.',
+              AppStrings.createFirstPage,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),

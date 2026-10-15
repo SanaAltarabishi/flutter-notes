@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:freenotes_app/core/constants/app_strings.dart';
 import 'package:freenotes_app/core/widgets/color_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../../core/constants/app_colors.dart';
 import '../../../domain/entities/book.dart';
 import '../books_provider.dart';
 
 class BookFormDialog extends ConsumerStatefulWidget {
-  final Book? existingBook;
+  final Book? existingBook; //todo : why we pass the entire object ?
 
   const BookFormDialog({
     super.key,
     this.existingBook,
   });
 
-  bool get isEditing => existingBook != null;
+  bool get isEditing =>
+      existingBook != null; //todo : why we using it like that ?
 
   @override
   ConsumerState<BookFormDialog> createState() => _BookFormDialogState();
@@ -32,7 +35,7 @@ class _BookFormDialogState extends ConsumerState<BookFormDialog> {
     );
 
     _selectedColor = widget.existingBook == null
-        ? Colors.blue
+        ? AppColors.primary
         : Color(widget.existingBook!.coverColorValue);
   }
 
@@ -43,20 +46,20 @@ class _BookFormDialogState extends ConsumerState<BookFormDialog> {
   }
 
   void _selectColor(Color color) {
+    //todo: is it normal to have setstate with the riverpod ?
     setState(() {
       _selectedColor = color;
     });
   }
 
+//__________________________________________________
   void _submit() {
+    //todo: why the submit have this kind of logic ?
     final title = _titleController.text.trim();
-
     if (title.isEmpty) {
       return;
     }
-
     final notifier = ref.read(booksProvider.notifier);
-
     if (widget.existingBook == null) {
       notifier.addBook(
         title,
@@ -71,10 +74,10 @@ class _BookFormDialogState extends ConsumerState<BookFormDialog> {
         ),
       );
     }
-
     Navigator.pop(context);
   }
 
+//__________________________________________________
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -85,7 +88,7 @@ class _BookFormDialogState extends ConsumerState<BookFormDialog> {
           ),
           const SizedBox(width: 10),
           Text(
-            widget.isEditing ? 'Edit Book' : 'Create New Book',
+            widget.isEditing ? AppStrings.editBook : AppStrings.createNewBook,
           ),
         ],
       ),
@@ -97,7 +100,7 @@ class _BookFormDialogState extends ConsumerState<BookFormDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Book title',
+                AppStrings.bookTitle,
                 style: Theme.of(context).textTheme.labelLarge,
               ),
               const SizedBox(height: 8),
@@ -107,18 +110,19 @@ class _BookFormDialogState extends ConsumerState<BookFormDialog> {
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _submit(),
                 decoration: InputDecoration(
-                  hintText: 'Enter book title',
+                  hintText: AppStrings.enterBookTitle,
                   prefixIcon: const Icon(
                     Icons.title_outlined,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(
+                        14), //todo : make the raduis the same
                   ),
                 ),
               ),
               const SizedBox(height: 22),
               Text(
-                'Appearance',
+                AppStrings.appearance,
                 style: Theme.of(context).textTheme.labelLarge,
               ),
               const SizedBox(height: 8),
@@ -139,7 +143,7 @@ class _BookFormDialogState extends ConsumerState<BookFormDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: const Text(AppStrings.cancel),
         ),
         FilledButton.icon(
           onPressed: _submit,
@@ -147,7 +151,7 @@ class _BookFormDialogState extends ConsumerState<BookFormDialog> {
             widget.isEditing ? Icons.check : Icons.add,
           ),
           label: Text(
-            widget.isEditing ? 'Save' : 'Create',
+            widget.isEditing ? AppStrings.save : AppStrings.create,
           ),
         ),
       ],

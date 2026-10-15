@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:freenotes_app/core/constants/app_colors.dart';
+import 'package:freenotes_app/core/constants/app_strings.dart';
 import '../../../domain/entities/page.dart';
 
 class PageCard extends StatelessWidget {
@@ -31,7 +32,7 @@ class PageCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(
+            color: AppColors.black.withValues(
               alpha: 0.035,
             ),
             blurRadius: 14,
@@ -69,7 +70,7 @@ class PageCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Tap to open',
+                      AppStrings.tapToOpen,
                       // style: theme.textTheme.bodySmall?.copyWith(
                       //   color: colors.onSurfaceVariant,
                       // ),
@@ -80,7 +81,7 @@ class PageCard extends StatelessWidget {
 
               // Edit and delete menu
               PopupMenuButton<String>(
-                tooltip: 'Page options',
+                tooltip: AppStrings.pageOptions,
                 icon: Icon(
                   Icons.more_horiz,
                   color: AppColors.seedColor.withValues(alpha: 0.7),
@@ -102,7 +103,7 @@ class PageCard extends StatelessWidget {
                       children: [
                         Icon(Icons.edit_outlined, size: 20),
                         SizedBox(width: 12),
-                        Text('Edit name'),
+                        Text(AppStrings.editName),
                       ],
                     ),
                   ),
@@ -117,7 +118,7 @@ class PageCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          'Delete',
+                          AppStrings.delete,
                           style: TextStyle(color: AppColors.error),
                         ),
                       ],
@@ -144,8 +145,8 @@ class _PagePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const paperColor = Color(0xFFFFFEFA);
-    const lineColor = Color(0xFFD9DEE8);
+    const paperColor = AppColors.pagePaper;
+    const lineColor = AppColors.pageLine;
 
     return Container(
       width: 66,
@@ -154,11 +155,11 @@ class _PagePreview extends StatelessWidget {
         color: paperColor,
         borderRadius: BorderRadius.circular(7),
         border: Border.all(
-          color: const Color(0xFFE4E5E9),
+          color: AppColors.pageBorder,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
+            color: AppColors.black.withValues(alpha: 0.07),
             blurRadius: 5,
             offset: const Offset(1, 3),
           ),
@@ -213,7 +214,7 @@ class _PagePreview extends StatelessWidget {
               child: CustomPaint(
                 size: const Size(15, 15),
                 painter: _FoldPainter(
-                  color: const Color(0xFFE8E8E5),
+                  color: AppColors.pageFold,
                 ),
               ),
             ),

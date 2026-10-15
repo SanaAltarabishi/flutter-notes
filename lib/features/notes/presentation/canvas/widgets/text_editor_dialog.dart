@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:freenotes_app/core/constants/app_strings.dart';
 
 class TextEditorDialog extends StatefulWidget {
   final String title;
@@ -44,13 +45,13 @@ class _TextEditorDialogState extends State<TextEditorDialog> {
         maxLines: 8,
         keyboardType: TextInputType.multiline,
         decoration: const InputDecoration(
-          hintText: 'Type something...',
+          hintText: AppStrings.typeSomething,
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: const Text(AppStrings.cancel),
         ),
         FilledButton(
           onPressed: () {

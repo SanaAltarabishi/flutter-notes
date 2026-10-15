@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:freenotes_app/core/constants/app_strings.dart';
 import 'package:freenotes_app/core/errors/failures.dart';
 import '../../../../../core/constants/app_colors.dart';
-
+//todo : somehow try to see this widget
 // Use "RetryWidget.fromFailure" so the icon and message automatically match the Failure type coming out of the repository layer.
 class RetryWidget extends StatelessWidget {
   final String message;
@@ -14,14 +15,15 @@ class RetryWidget extends StatelessWidget {
     required this.message,
     required this.onRetry,
     this.icon = Icons.error_outline_rounded,
-    this.retryLabel = 'إعادة المحاولة',
+    this.retryLabel = AppStrings.retry,
   });
 
   factory RetryWidget.fromFailure(
     Failure failure, {
     required VoidCallback onRetry,
   }) {
-    final icon = switch (failure) {
+    final icon = switch (failure) {//todo : check the failure flow in order to validate why it giving always the default ?
+     //for enstance it gives me netwrok error
       NetworkFailure() => Icons.wifi_off_rounded,
       ServerFailure() => Icons.cloud_off_rounded,
       CacheFailure() => Icons.storage_rounded,

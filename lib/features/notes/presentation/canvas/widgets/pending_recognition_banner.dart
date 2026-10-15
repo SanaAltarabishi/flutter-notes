@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:freenotes_app/core/constants/app_colors.dart';
+import 'package:freenotes_app/core/constants/app_strings.dart';
 
 class PendingRecognitionBanner extends StatelessWidget {
   final String text;
@@ -21,7 +23,7 @@ class PendingRecognitionBanner extends StatelessWidget {
     return Material(
       elevation: 4,
       borderRadius: BorderRadius.circular(10),
-      color: Colors.white,
+      color: AppColors.white,
       child: Container(
         constraints: const BoxConstraints(maxWidth: 300),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -41,20 +43,20 @@ class PendingRecognitionBanner extends StatelessWidget {
             const SizedBox(width: 6),
             _MiniIcon(
               icon: Icons.close,
-              color: Colors.grey,
-              tooltip: 'Keep drawing',
+              color: AppColors.grey,
+              tooltip: AppStrings.keepDrawing,
               onTap: onDiscard,
             ),
             _MiniIcon(
               icon: Icons.edit_outlined,
-              color: Colors.blueGrey,
-              tooltip: 'Fix text',
+              color: AppColors.blueGrey,
+              tooltip: AppStrings.fixText,
               onTap: onEdit,
             ),
             _MiniIcon(
               icon: Icons.check_circle,
-              color: Colors.green,
-              tooltip: 'Insert as text',
+              color: AppColors.green,
+              tooltip: AppStrings.insertAsText,
               onTap: onConfirm,
             ),
           ],

@@ -1,3 +1,4 @@
+import '../../../../core/constants/app_colors.dart';
 import '../../domain/entities/book.dart';
 
 class BookModel {
@@ -12,7 +13,7 @@ class BookModel {
     required this.title,
     required this.createdAtMillis,
     required this.updatedAtMillis,
-    this.coverColorValue = 0xFF2196F3,
+    this.coverColorValue = AppColors.defaultBookCoverValue,
   });
 //__________________________________________________________
 
@@ -53,7 +54,8 @@ class BookModel {
       title: map['title'] as String,
       createdAtMillis: map['created_at'] as int,
       updatedAtMillis: map['updated_at'] as int,
-      coverColorValue: map['cover_color'] as int? ?? 0xFF2196F3,
+      coverColorValue:
+          map['cover_color'] as int? ?? AppColors.defaultBookCoverValue,
     );
   }
 }

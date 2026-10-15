@@ -98,7 +98,7 @@ class _CanvasPainter extends CustomPainter {
 
     if (marqueeRect != null) {
       canvas.drawRect(
-          marqueeRect!, Paint()..color = Colors.blue.withOpacity(0.08));
+          marqueeRect!, Paint()..color = AppColors.canvasSelection);
       _drawSelectionOutline(canvas, marqueeRect!);
     }
   }
@@ -281,7 +281,7 @@ class _CanvasPainter extends CustomPainter {
 
   void _drawSelectionOutline(Canvas canvas, Rect rect) {
     final paint = Paint()
-      ..color = Colors.blue
+      ..color = AppColors.blue
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 

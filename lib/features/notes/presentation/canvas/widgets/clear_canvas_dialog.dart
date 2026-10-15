@@ -15,17 +15,17 @@ class ClearCanvasDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text(
-        Appstrings.clearCanvasDialogTitle,
+        AppStrings.clearCanvasDialogTitle,
       ),
       content: const Text(
-        Appstrings.clearCanvasDialogMessage,
+        AppStrings.clearCanvasDialogMessage,
         textAlign: TextAlign.center,
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text(
-            Appstrings.clearCanvasDialogCancel,
+            AppStrings.clearCanvasDialogCancel,
           ),
         ),
         FilledButton(
@@ -37,7 +37,7 @@ class ClearCanvasDialog extends StatelessWidget {
             Navigator.pop(context);
           },
           child: const Text(
-            Appstrings.clearCanvasDialogClear,
+            AppStrings.clearCanvasDialogClear,
           ),
         ),
       ],

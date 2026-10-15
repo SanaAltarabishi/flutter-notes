@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:freenotes_app/core/constants/app_strings.dart';
 import '../../../../../core/constants/app_colors.dart';
 
 class BookCard extends StatelessWidget {
+//todo: make it as genral stuffs and remove it from here
   static const BorderRadius _borderRadius = BorderRadius.only(
     topLeft: Radius.circular(4),
     bottomLeft: Radius.circular(4),
@@ -15,6 +17,10 @@ class BookCard extends StatelessWidget {
     topLeft: Radius.circular(2),
     bottomLeft: Radius.circular(2),
   );
+  //_________________________________________________________
+  String get _formattedDate {
+    return '${createdAt.day}/${createdAt.month}/${createdAt.year}';
+  }
 //_________________________________________________________
 
   final String title;
@@ -31,13 +37,8 @@ class BookCard extends StatelessWidget {
     this.onEdit,
     this.coverColor = AppColors.seedColor,
   });
-//_________________________________________________________
 
-  String get _formattedDate {
-    return '${createdAt.day}/${createdAt.month}/${createdAt.year}';
-  }
 //_________________________________________________________
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -71,12 +72,12 @@ class BookCard extends StatelessWidget {
       child: IconButton(
         onPressed: onEdit,
         icon: const Icon(Icons.edit_outlined, size: 18),
-        tooltip: 'Edit book',
+        tooltip: AppStrings.editBook,
         style: IconButton.styleFrom(
           fixedSize: const Size(34, 34),
           padding: EdgeInsets.zero,
-          backgroundColor: Colors.black45,
-          foregroundColor: Colors.white,
+          backgroundColor: AppColors.black45,
+          foregroundColor: AppColors.white,
         ),
       ),
     );
@@ -121,7 +122,7 @@ class BookCard extends StatelessWidget {
             coverColor,
             Color.lerp(
               coverColor,
-              Colors.black,
+              AppColors.black,
               0.35,
             )!,
           ],
@@ -153,7 +154,6 @@ class BookCard extends StatelessWidget {
 
 //_________________________________________________________
   // Gloss
-
   Widget _buildGloss() {
     return const Positioned.fill(
       child: DecoratedBox(
@@ -163,8 +163,8 @@ class BookCard extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: [
               AppColors.bookGloss,
-              Colors.transparent,
-              Colors.transparent,
+              AppColors.transparent,
+              AppColors.transparent,
             ],
             stops: [0.0, 0.3, 1.0],
           ),
@@ -175,7 +175,6 @@ class BookCard extends StatelessWidget {
 
 //_________________________________________________________
   // Spine
-
   Widget _buildSpine() {
     return const Positioned(
       left: 0,
@@ -189,7 +188,7 @@ class BookCard extends StatelessWidget {
             end: Alignment.centerRight,
             colors: [
               AppColors.bookSpineDark,
-              Color(0x26000000),
+              AppColors.bookSpineMiddle,
               AppColors.bookSpineHighlight,
             ],
             stops: [0.0, 0.55, 1.0],
@@ -212,8 +211,8 @@ class BookCard extends StatelessWidget {
       ),
     );
   }
-//_________________________________________________________
 
+//_________________________________________________________
   // Title
   Widget _buildTitle() {
     return Positioned(
@@ -243,7 +242,6 @@ class BookCard extends StatelessWidget {
 
 //_________________________________________________________
   // Divider
-
   Widget _buildDivider() {
     return Positioned(
       left: 40,
@@ -258,7 +256,6 @@ class BookCard extends StatelessWidget {
 
 //_________________________________________________________
   // Date
-
   Widget _buildDate() {
     return Positioned(
       left: 20,
@@ -275,8 +272,8 @@ class BookCard extends StatelessWidget {
     );
   }
 }
-//_________________________________________________________
 
+//_________________________________________________________
 // Draws thin horizontal lines to simulate individual page edges.
 class _PageEdgesPainter extends CustomPainter {
   static const double _spacing = 2.5;
