@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:freenotes_app/features/notes/presentation/canvas/utils/selection_resize.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/text_utils.dart';
 import '../../domain/entities/content_block.dart';
@@ -13,6 +14,8 @@ import 'canvas_state.dart';
 import '../providers/core_providers.dart';
 import 'utils/canvas_geometry.dart';
 import 'utils/canvas_history.dart';
+import 'utils/resize_handle_position.dart';
+import 'utils/selection_geometry.dart';
 import 'utils/stroke_eraser.dart';
 
 final canvasProvider =
@@ -32,6 +35,12 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   bool _isDraggingSelection = false;
   bool _dragMoved = false;
   bool _dragSnapshotTaken = false;
+
+  List<Stroke>? _resizeStartStrokes; // snapshot taken when the drag starts
+  List<ContentBlock>? _resizeStartBlocks;
+  Rect? _resizeStartBounds;
+  bool _resizeSnapshotTaken = false; // undo snapshot, only if something changed
+  bool _resizeMoved = false;
 
   @override
   CanvasState build(String arg) {
@@ -455,6 +464,154 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
       updatedAt: DateTime.now(),
     );
   }
+
+  //_______________________________________
+//Resize handles:
+  void beginResize() {
+    final bounds = SelectionGeometry.boundsOf(
+      strokes: state.strokes,
+      blocks: state.blocks,
+      selectedBlockIds: state.selectedBlockIds,
+      selectedStrokeIds: state.selectedStrokeIds,
+      page: state.canvasSize,
+    );
+    if (bounds == null) return;
+
+    _resizeStartStrokes = state.strokes;
+    _resizeStartBlocks = state.blocks;
+    _resizeStartBounds = bounds;
+    _resizeSnapshotTaken = false;
+    _resizeMoved = false;
+  }
+
+  /// Finger moved.
+  /// [delta] = TOTAL movement since beginResize(), in scene units
+  /// (SelectionBoundingBox already converts screen pixels to scene units).
+  ///
+  /// Every call starts again from the snapshot, so there is no drift.
+  void resizeSelection(
+    Offset delta,
+    ResizeHandlePosition handle, {
+    bool keepAspectRatio = true,
+  }) {
+    final startBounds = _resizeStartBounds;
+    final startStrokes = _resizeStartStrokes;
+    final startBlocks = _resizeStartBlocks;
+    if (startBounds == null || startStrokes == null || startBlocks == null) {
+      return;
+    }
+
+    final hasText = SelectionGeometry.containsText(
+      blocks: startBlocks,
+      selectedBlockIds: state.selectedBlockIds,
+    );
+
+    final transform = computeResizeTransform(
+      startRect: startBounds,
+      handle: handle,
+      delta: delta,
+      keepAspectRatio: keepAspectRatio || hasText, // text is always uniform
+      minSize: 10,
+    );
+
+    // Same pattern as _dragSnapshotTaken: ONE undo step for the whole drag,
+    // and none if the user only touched the handle.
+    if (!_resizeSnapshotTaken && !transform.isIdentity) {
+      _saveHistory();
+      _resizeSnapshotTaken = true;
+    }
+    if (!transform.isIdentity) _resizeMoved = true;
+
+    final strokeIds = state.selectedStrokeIds;
+    final blockIds = state.selectedBlockIds;
+
+    state = state.copyWith(
+      strokes: [
+        for (final s in startStrokes)
+          strokeIds.contains(s.id) ? _scaleStroke(s, transform) : s,
+      ],
+      blocks: [
+        for (final b in startBlocks)
+          _scaleBlock(b, transform, blockIds, strokeIds),
+      ],
+    );
+  }
+
+  /// Finger lifted. Saves the changed blocks, like endSelection() does.
+  Future<void> endResize() async {
+    final moved = _resizeMoved;
+
+    _resizeStartStrokes = null;
+    _resizeStartBlocks = null;
+    _resizeStartBounds = null;
+    _resizeSnapshotTaken = false;
+    _resizeMoved = false;
+
+    if (moved) await _persistSelectedBlocks();
+  }
+
+  StrokePoint _scalePoint(StrokePoint p, ResizeTransform t) {
+    final q = t.apply(Offset(p.x, p.y)); // a + (p - a) * scale
+    return StrokePoint(x: q.dx, y: q.dy);
+  }
+
+  Stroke _scaleStroke(Stroke s, ResizeTransform t) => Stroke(
+        id: s.id,
+        points: [for (final p in s.points) _scalePoint(p, t)],
+        colorValue: s.colorValue,
+        // Corner drag: the line gets thicker / thinner with the drawing.
+        // Edge drag (stretch): keep the thickness.
+        strokeWidth: s.strokeWidth * (t.isUniform ? t.scaleX : 1.0),
+        createdAt: s.createdAt,
+      );
+
+  ContentBlock _scaleBlock(
+    ContentBlock block,
+    ResizeTransform t,
+    Set<String> selectedBlockIds,
+    Set<String> selectedStrokeIds,
+  ) {
+    // Strokes that live inside a saved InkBlock (selected by stroke id).
+    // Like _shiftSelectedInkBlock: the block's own x/y/width/height are not
+    // touched, the painter takes the bounds from the strokes.
+    if (block is InkBlock) {
+      if (!block.strokes.any((s) => selectedStrokeIds.contains(s.id))) {
+        return block;
+      }
+      return block.copyWith(
+        strokes: [
+          for (final s in block.strokes)
+            selectedStrokeIds.contains(s.id) ? _scaleStroke(s, t) : s,
+        ],
+        updatedAt: DateTime.now(),
+      );
+    }
+
+    if (block is TextBlock && selectedBlockIds.contains(block.id)) {
+      final scale = t.scaleX; // text is always uniform: scaleX == scaleY
+      final topLeft = t.apply(Offset(block.x, block.y));
+      final fontSize = block.fontSize * scale;
+      final width = (block.width > 0 ? block.width : _defaultTextWidth) * scale;
+
+      return block.copyWith(
+        x: topLeft.dx,
+        y: topLeft.dy,
+        fontSize: fontSize,
+        width: width,
+        height: measureTextHeight(
+          text: block.text,
+          fontFamily: block.fontFamily,
+          fontSize: fontSize,
+          width: width,
+        ),
+        updatedAt: DateTime.now(),
+      );
+    }
+
+    return block;
+  }
+
+  //_______________________________________
 
   Future<void> _persistSelectedBlocks() async {
     final saveBlock = ref.read(saveBlockUseCaseProvider);

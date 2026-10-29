@@ -20,8 +20,8 @@ InteractiveViewer + Canvas أكبر من الشاشة + Zoom/Pan + فصل Canvas
 //todo : check the router and navigation
 //todo : make the width of the toolbar not changable in this way
 //todo: the canvas zoom, why it like appears a pice of white paper under of it ?
+//todo: add to the earaser shape in the screen
 //_____________________________________________
 /*
-done :
 
 */

@@ -135,6 +135,17 @@ class CanvasState {
   }
 
 //___________________________________________________
+double getEffectiveEraserRadius(double currentScale) {
+    // نتجنب القسمة على صفر أو قيم غير منطقية
+    final safeScale = currentScale > 0 ? currentScale : 1.0;
+
+    // إذا كان eraserSize مخزناً كـ "بكسل على الشاشة"، نقسمه على الـ scale
+    // ليتم تحويله إلى "إحداثيات الـ Canvas" بشكل صحيح.
+    // (ملاحظة: إذا أردتِ العكس، استخدمي الضرب * بدلاً من القسمة /)
+    return eraserSize / safeScale;
+  }
+
+//___________________________________________________
   bool get hasSelection =>
       selectedBlockIds.isNotEmpty || selectedStrokeIds.isNotEmpty;
 //___________________________________________________

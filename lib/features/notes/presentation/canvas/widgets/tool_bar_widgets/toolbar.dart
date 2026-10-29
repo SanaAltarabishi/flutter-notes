@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:freenotes_app/core/constants/app_colors.dart';
 import 'package:freenotes_app/core/constants/app_strings.dart';
@@ -5,6 +6,9 @@ import 'package:freenotes_app/core/constants/app_constants.dart';
 import 'package:freenotes_app/core/widgets/color_picker.dart';
 import '../../canvas_state.dart';
 
+// Layout pattern: "stable bar + anchored popover".
+// - The bar is ONE fixed-height row. Nothing in it appears, disappears or
+// - Color / size options live in a popover that floats above the canvas
 class CanvasToolbar extends StatefulWidget {
   final CanvasTool currentTool;
   final Color activeColor;
@@ -68,98 +72,226 @@ class CanvasToolbar extends StatefulWidget {
 }
 
 class _CanvasToolbarState extends State<CanvasToolbar> {
+  static const double _rowHeight = 48;
+  static const double _panelMaxWidth = 360;
   bool _showAdvancedControls = false;
-
   final ScrollController _toolsScrollController = ScrollController();
-  final ScrollController _colorsScrollController = ScrollController();
+  // Shows / hides the floating panel (it is not part of the layout).
+  final OverlayPortalController _panelController = OverlayPortalController();
+  /// Connects the panel to the toolbar, so it opens right under it.
+  final LayerLink _panelLink = LayerLink();
+  /// The bar and the panel share this id: a tap inside either one is "inside".
+  final Object _tapGroup = Object();
+  bool get _hasAdvancedControls => widget.showColor || widget.showSize;
+
+  @override
+  void didUpdateWidget(covariant CanvasToolbar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The new tool has no options: close the panel (after this frame).
+    if (_showAdvancedControls && !_hasAdvancedControls) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _setPanelVisible(false);
+      });
+    }
+  }
 
   @override
   void dispose() {
     _toolsScrollController.dispose();
-    _colorsScrollController.dispose();
     super.dispose();
+  }
+
+  void _setPanelVisible(bool visible) {
+    if (_showAdvancedControls == visible) return;
+    if (visible && !_hasAdvancedControls) return;
+
+    setState(() => _showAdvancedControls = visible);
+    if (visible) {
+      _panelController.show();
+    } else {
+      _panelController.hide();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final hasAdvancedControls = widget.showColor || widget.showSize;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.lightGrey,
-        border: Border(
-          bottom: BorderSide(color: AppColors.greyBorder),
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    return CompositedTransformTarget(
+      link: _panelLink,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration:const BoxDecoration(
+          color: AppColors.lightGrey,
+          border: Border(
+            bottom: BorderSide(color: AppColors.greyBorder),
+          ),
         ),
-      ),
-      child: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isNarrow = constraints.maxWidth < 600;
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final panelWidth = math.min(constraints.maxWidth, _panelMaxWidth);
 
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ToolsRow(
-                  hasAdvancedControls: hasAdvancedControls,
-                  showAdvancedControls: _showAdvancedControls,
-                  currentTool: widget.currentTool,
-                  canUndo: widget.canUndo,
-                  canRedo: widget.canRedo,
-                  hasSelection: widget.hasSelection,
-                  isRecognizing: widget.isRecognizing,
-                  selectedLanguage: widget.selectedLanguage,
-                  onToggleAdvanced: () {
-                    setState(() {
-                      _showAdvancedControls = !_showAdvancedControls;
-                    });
-                  },
-                  onToolChanged: widget.onToolChanged,
-                  onFitPage: widget.onFitPage,
-                  onAddText: widget.onAddText,
-                  onUndo: widget.onUndo,
-                  onRedo: widget.onRedo,
-                  onClear: widget.onClear,
-                  onEditText: widget.onEditText,
-                  onDeleteSelected: widget.onDeleteSelected,
-                  onLanguageChanged: widget.onLanguageChanged,
-                  onConvert: widget.onConvert,
-                  onConvertUnavailable: widget.onConvertUnavailable,
-                  scrollController: _toolsScrollController,
-                ),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeInOut,
-                  child: _showAdvancedControls
-                      ? Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: _AdvancedControls(
-                            showColor: widget.showColor,
-                            showSize: widget.showSize,
-                            isNarrow: isNarrow,
-                            activeColor: widget.activeColor,
-                            sliderValue: widget.sliderValue,
-                            sliderMin: widget.sliderMin,
-                            sliderMax: widget.sliderMax,
-                            onColorChanged: widget.onColorChanged,
-                            onSliderChanged: widget.onSliderChanged,
-                            onSliderChangeEnd: widget.onSliderChangeEnd,
-                            scrollController: _colorsScrollController,
+              return OverlayPortal(
+                controller: _panelController,
+                overlayChildBuilder: (_) => _buildPanelOverlay(panelWidth, isRtl),
+                child: TapRegion(
+                  groupId: _tapGroup,
+                  // Fixed height: the bar can never grow or shrink.
+                  child: SizedBox(
+                    height: _rowHeight,
+                    child: Row(
+                      children: [
+                        _StyleButton(
+                          enabled: _hasAdvancedControls,
+                          open: _showAdvancedControls,
+                          showColor: widget.showColor,
+                          color: widget.activeColor,
+                          tooltip: _showAdvancedControls
+                              ? AppStrings.lessTools
+                              : AppStrings.moreTools,
+                          onTap: () => _setPanelVisible(!_showAdvancedControls),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: _ToolsRow(
+                            currentTool: widget.currentTool,
+                            canUndo: widget.canUndo,
+                            canRedo: widget.canRedo,
+                            hasSelection: widget.hasSelection,
+                            isRecognizing: widget.isRecognizing,
+                            selectedLanguage: widget.selectedLanguage,
+                            onToolChanged: widget.onToolChanged,
+                            onFitPage: widget.onFitPage,
+                            onAddText: widget.onAddText,
+                            onUndo: widget.onUndo,
+                            onRedo: widget.onRedo,
+                            onClear: widget.onClear,
+                            onEditText: widget.onEditText,
+                            onDeleteSelected: widget.onDeleteSelected,
+                            onLanguageChanged: widget.onLanguageChanged,
+                            onConvert: widget.onConvert,
+                            onConvertUnavailable: widget.onConvertUnavailable,
+                            scrollController: _toolsScrollController,
                           ),
-                        )
-                      : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ],
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
+    );
+  }
+
+  /// The floating panel. It sits in the Overlay, above the canvas.
+  Widget _buildPanelOverlay(double width, bool isRtl) {
+    // Stack gives the follower LOOSE constraints, so the panel keeps its own
+    // size instead of being stretched to the full screen.
+    return Stack(
+      children: [
+        CompositedTransformFollower(
+          link: _panelLink,
+          showWhenUnlinked: false,
+          targetAnchor: isRtl ? Alignment.bottomRight : Alignment.bottomLeft,
+          followerAnchor: isRtl ? Alignment.topRight : Alignment.topLeft,
+          offset: Offset(isRtl ? -8 : 8, 6),
+          child: TapRegion(
+            groupId: _tapGroup,
+            // Tap outside bar + panel closes it. The tap still reaches the
+            // canvas, so the user can keep drawing.
+            onTapOutside: (_) => _setPanelVisible(false),
+            child: _StylePanel(
+              width: width,
+              showColor: widget.showColor,
+              showSize: widget.showSize,
+              activeColor: widget.activeColor,
+              sliderValue: widget.sliderValue,
+              sliderMin: widget.sliderMin,
+              sliderMax: widget.sliderMax,
+              onColorChanged: widget.onColorChanged,
+              onSliderChanged: widget.onSliderChanged,
+              onSliderChangeEnd: widget.onSliderChangeEnd,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
 //________________
+/// Fixed 48x48 button Shows the active color and
+class _StyleButton extends StatelessWidget {
+  final bool enabled;
+  final bool open;
+  final bool showColor;
+  final Color color;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _StyleButton({
+    required this.enabled,
+    required this.open,
+    required this.showColor,
+    required this.color,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Tooltip(
+      message: tooltip,
+      child: InkResponse(
+        onTap: enabled ? onTap : null,
+        radius: 24,
+        child: AnimatedOpacity(
+          opacity: enabled ? 1 : 0.4,
+          duration: const Duration(milliseconds: 150),
+          child: SizedBox(
+            width: 48,
+            height: 48,
+            child: Stack(
+              children: [
+                Center(
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: showColor ? color : AppColors.greySurface,
+                      border: Border.all(
+                        color: open ? theme.primaryColor : AppColors.greyBorder,
+                        width: open ? 2 : 1,
+                      ),
+                    ),
+                    child: showColor ? null : const Icon(Icons.tune, size: 16),
+                  ),
+                ),
+                Positioned(
+                  right: 3,
+                  bottom: 5,
+                  child: Icon(
+                    open ? Icons.expand_less : Icons.expand_more,
+                    size: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+//________________
+// The scrollable tools. Every slot is always present: actions that do not apply are disabled, not removed, so nothing shifts sideways.
 class _ToolsRow extends StatelessWidget {
-  final bool showAdvancedControls;
   final CanvasTool currentTool;
   final bool canUndo;
   final bool canRedo;
@@ -167,7 +299,6 @@ class _ToolsRow extends StatelessWidget {
   final bool isRecognizing;
   final String selectedLanguage;
 
-  final VoidCallback onToggleAdvanced;
   final ValueChanged<CanvasTool> onToolChanged;
   final VoidCallback onFitPage;
   final VoidCallback onAddText;
@@ -180,17 +311,14 @@ class _ToolsRow extends StatelessWidget {
   final VoidCallback? onConvert;
   final VoidCallback? onConvertUnavailable;
   final ScrollController scrollController;
-  final bool hasAdvancedControls;
 
   const _ToolsRow({
-    required this.showAdvancedControls,
     required this.currentTool,
     required this.canUndo,
     required this.canRedo,
     required this.hasSelection,
     required this.isRecognizing,
     required this.selectedLanguage,
-    required this.onToggleAdvanced,
     required this.onToolChanged,
     required this.onFitPage,
     required this.onAddText,
@@ -203,7 +331,6 @@ class _ToolsRow extends StatelessWidget {
     required this.onConvert,
     required this.onConvertUnavailable,
     required this.scrollController,
-    required this.hasAdvancedControls,
   });
 
   @override
@@ -220,38 +347,6 @@ class _ToolsRow extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (hasAdvancedControls)
-              InkWell(
-                onTap: onToggleAdvanced,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.greySurface,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                          showAdvancedControls
-                              ? Icons.unfold_less
-                              : Icons.unfold_more,
-                          size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        showAdvancedControls
-                            ? AppStrings.lessTools
-                            : AppStrings.moreTools,
-                        style: const TextStyle(fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            const SizedBox(width: 4),
             IconButton(
               icon: const Icon(Icons.fit_screen),
               onPressed: onFitPage,
@@ -314,34 +409,27 @@ class _ToolsRow extends StatelessWidget {
               onPressed: onClear,
               tooltip: AppStrings.clearDrawing,
             ),
-            if (onEditText != null)
-              IconButton(
-                icon: const Icon(Icons.edit_note),
-                onPressed: onEditText,
-                tooltip: AppStrings.editText,
-              ),
-            if (hasSelection)
-              IconButton(
-                icon: const Icon(
-                  Icons.delete_forever_outlined,
-                  color: AppColors.red,
-                ),
-                onPressed: onDeleteSelected,
-                tooltip: AppStrings.deleteSelected,
-              ),
-            if (isRecognizing)
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            else
-              _LanguageConvertGroup(
-                selectedLanguage: selectedLanguage,
-                onLanguageChanged: onLanguageChanged,
-                onConvert: onConvert,
-                onConvertUnavailable: onConvertUnavailable,
-              ),
+            // Disabled when there is no text to edit.
+            IconButton(
+              icon: const Icon(Icons.edit_note),
+              onPressed: onEditText,
+              tooltip: AppStrings.editText,
+            ),
+            //  Disabled when nothing is selected.
+            IconButton(
+              icon: const Icon(Icons.delete_forever_outlined),
+              color: hasSelection ? AppColors.red : null,
+              onPressed: hasSelection ? onDeleteSelected : null,
+              tooltip: AppStrings.deleteSelected,
+            ),
+            const SizedBox(width: 4),
+            _LanguageConvertGroup(
+              selectedLanguage: selectedLanguage,
+              isRecognizing: isRecognizing,
+              onLanguageChanged: onLanguageChanged,
+              onConvert: onConvert,
+              onConvertUnavailable: onConvertUnavailable,
+            ),
           ],
         ),
       ),
@@ -350,22 +438,23 @@ class _ToolsRow extends StatelessWidget {
 }
 
 //________________
-class _AdvancedControls extends StatelessWidget {
-  final bool isNarrow;
+// The floating options panel (color + size).
+class _StylePanel extends StatelessWidget {
+  final double width;
+  final bool showColor;
+  final bool showSize;
   final Color activeColor;
   final double sliderValue;
   final double sliderMin;
   final double sliderMax;
-  final bool showColor;
-  final bool showSize;
-
   final ValueChanged<Color> onColorChanged;
   final ValueChanged<double> onSliderChanged;
   final ValueChanged<double>? onSliderChangeEnd;
-  final ScrollController scrollController;
 
-  const _AdvancedControls({
-    required this.isNarrow,
+  const _StylePanel({
+    required this.width,
+    required this.showColor,
+    required this.showSize,
     required this.activeColor,
     required this.sliderValue,
     required this.sliderMin,
@@ -373,19 +462,10 @@ class _AdvancedControls extends StatelessWidget {
     required this.onColorChanged,
     required this.onSliderChanged,
     required this.onSliderChangeEnd,
-    required this.scrollController,
-    required this.showColor,
-    required this.showSize,
-    // super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Nothing to show for this tool/context.
-    if (!showColor && !showSize) {
-      return const SizedBox.shrink();
-    }
-
     final colorControls = [
       ...[
         AppColors.black,
@@ -418,40 +498,64 @@ class _AdvancedControls extends StatelessWidget {
       onChangeEnd: onSliderChangeEnd,
     );
 
-    if (isNarrow) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (showColor)
-            Scrollbar(
-              controller: scrollController,
-              thumbVisibility: true,
-              thickness: 7,
-              radius: const Radius.circular(12),
-              child: SingleChildScrollView(
-                controller: scrollController,
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: colorControls,
+    // Small fade + slide when the panel opens.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(offset: Offset(0, (1 - t) * -6), child: child),
+      ),
+      child: Material(
+        color: AppColors.lightGrey,
+        elevation: 6,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: AppColors.greyBorder),
+        ),
+        child: SizedBox(
+          width: width,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _PanelSection(
+                  enabled: showColor,
+                  child: Wrap(
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: colorControls,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 4),
+                _PanelSection(enabled: showSize, child: slider),
+              ],
             ),
-          if (showSize) slider,
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        if (showColor) ...colorControls,
-        if (showColor && showSize) const SizedBox(width: 16),
-        if (showSize)
-          Expanded(
-            child: slider,
           ),
-      ],
+        ),
+      ),
+    );
+  }
+}
+
+//__________________________
+// Keeps the section in the layout, but dimmed and untouchable when the current tool does not use it.
+class _PanelSection extends StatelessWidget {
+  final bool enabled;
+  final Widget child;
+
+  const _PanelSection({required this.enabled, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: enabled ? 1 : 0.35,
+      duration: const Duration(milliseconds: 150),
+      child: IgnorePointer(ignoring: !enabled, child: child),
     );
   }
 }
@@ -490,17 +594,22 @@ class _ColorDot extends StatelessWidget {
 }
 
 //_____________
+/// Language + Convert.
 class _LanguageConvertGroup extends StatelessWidget {
   final String selectedLanguage;
+  final bool isRecognizing;
   final ValueChanged<String> onLanguageChanged;
   final VoidCallback? onConvert;
   final VoidCallback? onConvertUnavailable;
+
   const _LanguageConvertGroup({
     required this.selectedLanguage,
+    required this.isRecognizing,
     required this.onLanguageChanged,
     required this.onConvert,
     required this.onConvertUnavailable,
   });
+
   @override
   Widget build(BuildContext context) {
     final isArabic = selectedLanguage == AppConstants.langArabic;
@@ -516,6 +625,7 @@ class _LanguageConvertGroup extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           PopupMenuButton<String>(
+            enabled: !isRecognizing,
             tooltip: AppStrings.recognitionLanguage,
             initialValue: selectedLanguage,
             onSelected: onLanguageChanged,
@@ -537,10 +647,18 @@ class _LanguageConvertGroup extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    isArabic ? AppStrings.arabicCode : AppStrings.englishCode,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
+                  // Same width for both language codes.
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 28),
+                    child: Center(
+                      child: Text(
+                        isArabic
+                            ? AppStrings.arabicCode
+                            : AppStrings.englishCode,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
                   const Icon(
@@ -553,17 +671,23 @@ class _LanguageConvertGroup extends StatelessWidget {
           ),
           const SizedBox(width: 2),
           FilledButton.icon(
-            onPressed: onConvert ?? onConvertUnavailable,
+            onPressed: isRecognizing ? null : (onConvert ?? onConvertUnavailable),
             style: onConvert == null
                 ? FilledButton.styleFrom(
                     backgroundColor: AppColors.greyBorder,
                     foregroundColor: AppColors.greyText,
                   )
                 : null,
-            icon: const Icon(
-              Icons.translate,
-              size: 18,
-            ),
+            icon: isRecognizing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(
+                    Icons.translate,
+                    size: 18,
+                  ),
             label: const Text(AppStrings.convert),
           ),
         ],
