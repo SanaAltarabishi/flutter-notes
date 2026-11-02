@@ -17,9 +17,11 @@ class AppStrings {
   static const String deletePageMessage =
       'This page and its drawings will be permanently deleted.';
   static const String noPagesYet = 'No pages yet';
-  static const String createFirstPage = 'Create your first page and start writing.';
+  static const String createFirstPage =
+      'Create your first page and start writing.';
   static const String typeSomething = 'Type something...';
-  static const String selectHandwriting = 'Select handwriting before converting it to text.';
+  static const String selectHandwriting =
+      'Select handwriting before converting it to text.';
   static const String editText = 'Edit text';
   static const String fixRecognizedText = 'Fix recognized text';
   static const String addText = 'Add text';
@@ -56,7 +58,7 @@ class AppStrings {
   static const String clearCanvasDialogCancel = 'Cancel';
   static const String clearCanvasDialogClear = 'Clear all';
   static const String saveDrawing = 'Save drawing';
-  static const String appName = 'FreeNotes';
+  static const String appName = 'Inko';
   static const String arabic = 'العربية';
   static const String english = 'English';
   static const String englishCode = 'EN';
@@ -76,5 +78,9 @@ class AppStrings {
   static const String retry = 'إعادة المحاولة';
   static const String myBooks = 'My Books';
   static const String emptyBook = 'No books yet. Create one!';
+  static const String noBooksMatch = 'No books match your search.';
   static const String newBook = 'New Book';
+  static const String searchBooks = 'Search books...';
+  static const String searchPages = 'Search pages...';
+  static const String noPagesMatch = 'No pages match your search.';
 }

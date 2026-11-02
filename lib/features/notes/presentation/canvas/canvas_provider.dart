@@ -1,6 +1,7 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:freenotes_app/features/notes/presentation/canvas/utils/selection_resize.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/text_utils.dart';
 import '../../domain/entities/content_block.dart';
@@ -16,7 +17,12 @@ import 'utils/canvas_geometry.dart';
 import 'utils/canvas_history.dart';
 import 'utils/resize_handle_position.dart';
 import 'utils/selection_geometry.dart';
+import 'utils/selection_resize.dart';
 import 'utils/stroke_eraser.dart';
+import 'utils/text_block_layout.dart';
+
+/// The 4 sides of the canvas.
+enum _Edge { left, top, right, bottom }
 
 final canvasProvider =
     NotifierProvider.family<CanvasNotifier, CanvasState, String>(
@@ -24,7 +30,7 @@ final canvasProvider =
 
 class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   late final String pageId;
-  static const double _defaultTextWidth = 220;
+  static const double _defaultTextWidth = TextBlockLayout.defaultWidth;
   static const double _defaultFontSize = 18;
   static const String _defaultFont = 'Roboto';
 
@@ -42,6 +48,28 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   bool _resizeSnapshotTaken = false; // undo snapshot, only if something changed
   bool _resizeMoved = false;
 
+  // ---- Canvas growth ------------------------------------------------------
+
+  /// The canvas grows when the pointer (or the selection) gets this close
+  /// to one of its edges.
+  static const double _expansionThreshold = 50;
+
+  /// How much the canvas grows each time.
+  static const double _expansionAmount = 400;
+
+  /// Only these tools can make the canvas grow.
+  static const Set<CanvasTool> _expandingTools = {
+    CanvasTool.pen,
+    CanvasTool.highlighter,
+    CanvasTool.lasso,
+  };
+
+  /// Edges that just grew and that the pointer has not left yet.
+  /// It stops the same edge from growing again and again while the pointer
+  /// is still close to it. When the pointer leaves an edge, that edge is
+  /// removed from this set and can grow again.
+  final Set<_Edge> _spentEdges = {};
+
   @override
   CanvasState build(String arg) {
     pageId = arg;
@@ -53,9 +81,78 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
     final getBlocks = ref.read(getBlocksUseCaseProvider);
     final result = await getBlocks(GetBlocksParams(pageId));
 
+    // result.fold(
+    //   (failure) => state = state.copyWith(error: failure),
+    //   (blocks) => state = state.copyWith(blocks: blocks, clearError: true),
+    // );
     result.fold(
       (failure) => state = state.copyWith(error: failure),
-      (blocks) => state = state.copyWith(blocks: blocks, clearError: true),
+      (loaded) {
+        // 1) Content saved at negative coordinates can not be reached: move it back in.
+        final blocks = _bringIntoView(loaded);
+
+        // 2) The canvas size is NOT saved, only the blocks are. Make the canvas
+        //    big enough to show everything that was drawn on it.
+        state = state.copyWith(
+          blocks: blocks,
+          canvasSize: _canvasSizeToFit(blocks),
+          clearError: true,
+        );
+
+        // Save the moved blocks (only when something was moved).
+        if (!identical(blocks, loaded)) unawaited(_saveBlocks(blocks));
+      },
+    );
+  }
+
+  // ---- Fit the canvas to the saved content ---------------------------------
+
+  /// The rectangle a block covers (null if it has nothing to show).
+  Rect? _contentRect(ContentBlock block) {
+    if (block is InkBlock) return CanvasGeometry.strokesBounds(block.strokes);
+    if (block is TextBlock) {
+      // No right edge yet: the text wraps at its own width.
+      return TextBlockLayout.boundsOf(block, canvasRight: double.infinity);
+    }
+    return Rect.fromLTWH(block.x, block.y, block.width, block.height);
+  }
+
+  /// One rectangle around all the blocks (null if there is nothing).
+  Rect? _contentBounds(List<ContentBlock> blocks) {
+    Rect? bounds;
+    for (final block in blocks) {
+      final rect = _contentRect(block);
+      if (rect != null) bounds = bounds?.expandToInclude(rect) ?? rect;
+    }
+    return bounds;
+  }
+
+  /// If some content is at negative coordinates (left of or above the canvas),
+  /// move EVERYTHING right / down so it can be reached again.
+  /// Returns the same list if nothing had to move.
+  List<ContentBlock> _bringIntoView(List<ContentBlock> blocks) {
+    final bounds = _contentBounds(blocks);
+    if (bounds == null || (bounds.left >= 0 && bounds.top >= 0)) return blocks;
+
+    const margin = _expansionThreshold * 2;
+    final dx = bounds.left < 0 ? margin - bounds.left : 0.0;
+    final dy = bounds.top < 0 ? margin - bounds.top : 0.0;
+
+    return [for (final block in blocks) _shiftBlock(block, dx, dy)];
+  }
+
+  /// The current canvas size, made bigger if the content goes past it.
+  /// It never makes the canvas smaller.
+  Size _canvasSizeToFit(List<ContentBlock> blocks) {
+    final size = state.canvasSize;
+    final bounds = _contentBounds(blocks);
+    if (bounds == null) return size;
+
+    const margin =
+        _expansionThreshold * 2; // room so the edge does not grow right away
+    return Size(
+      math.max(size.width, bounds.right + margin),
+      math.max(size.height, bounds.bottom + margin),
     );
   }
 
@@ -63,8 +160,6 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
 
   // ============================================================
   // Undo / Redo
-  // ============================================================
-
   void _saveHistory() {
     _history.save(strokes: state.strokes, blocks: state.blocks);
     state =
@@ -127,10 +222,9 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
 
   // ============================================================
   // رسم: قلم / تظليل
-  // ============================================================
-
   void startStroke(Offset point) {
     _saveHistory();
+    _resetExpansion();
 
     final isHighlighter = state.currentTool == CanvasTool.highlighter;
     final baseColor =
@@ -163,7 +257,7 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
     );
   }
 
-  void endStroke() {}
+  void endStroke() => _resetExpansion();
 
   void setHighlighterWidth(double width) =>
       state = state.copyWith(highlighterWidth: width);
@@ -172,8 +266,101 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
       state = state.copyWith(strokeWidth: width);
 
   // ============================================================
-  // محاية
+  // نمو الصفحة (Canvas growth)
+  //
+  // When the pen gets near an edge, the canvas gets bigger:
+  //  - right / bottom: the canvas is just bigger, nothing moves.
+  //  - left / top: new space is added BEFORE the content, so everything is
+  //    moved right / down by the added amount (coordinates never go
+  //    negative). The point the caller is using must be moved too.
   // ============================================================
+
+  /// Call it with the pointer position while drawing.
+  /// Returns the SAME visual point in the new coordinates (moved if the
+  /// left or top edge grew). Use the returned point for the stroke.
+  Offset checkAndExpandCanvas(Offset point) {
+    if (!_expandingTools.contains(state.currentTool)) return point;
+
+    // A point is a rectangle with no size.
+    return point + _expandIfNearEdge(Rect.fromPoints(point, point));
+  }
+
+  /// Call it after the selection was moved or resized.
+  /// Returns how much the content moved (zero if the canvas did not grow
+  /// on the left or top).
+  Offset checkAndExpandForSelection() {
+    final bounds = _selectionBounds();
+    if (bounds == null) return Offset.zero;
+
+    return _expandIfNearEdge(bounds);
+  }
+
+  /// Shared by the two methods above: [area] is a point or a selection box.
+  Offset _expandIfNearEdge(Rect area) {
+    final size = state.canvasSize;
+
+    final near = <_Edge>{
+      if (area.left <= _expansionThreshold) _Edge.left,
+      if (area.top <= _expansionThreshold) _Edge.top,
+      if (area.right >= size.width - _expansionThreshold) _Edge.right,
+      if (area.bottom >= size.height - _expansionThreshold) _Edge.bottom,
+    };
+
+    // An edge we moved away from can grow again.
+    _spentEdges.retainAll(near);
+
+    final toGrow = near.difference(_spentEdges);
+    if (toGrow.isEmpty) return Offset.zero;
+
+    return _growCanvas(toGrow);
+  }
+
+  /// Makes the canvas bigger on [edges]. Returns how much the content moved.
+  Offset _growCanvas(Set<_Edge> edges) {
+    double amount(_Edge edge) => edges.contains(edge) ? _expansionAmount : 0;
+
+    final left = amount(_Edge.left);
+    final top = amount(_Edge.top);
+    final right = amount(_Edge.right);
+    final bottom = amount(_Edge.bottom);
+
+    final shift = Offset(left, top);
+    final contentMoves = shift != Offset.zero;
+    final size = state.canvasSize;
+
+    // Growing right / bottom moves nothing, so nothing is rebuilt or saved.
+    final blocks = contentMoves
+        ? [for (final b in state.blocks) _shiftBlock(b, left, top)]
+        : state.blocks;
+    final strokes = contentMoves
+        ? [for (final s in state.strokes) _shiftStroke(s, left, top)]
+        : state.strokes;
+
+    // One state update, so the screen only sees the final result.
+    state = state.copyWith(
+      canvasSize: Size(size.width + left + right, size.height + top + bottom),
+      canvasExpansionShift: shift,
+      canvasExpansionVersion: state.canvasExpansionVersion + 1,
+      strokes: strokes,
+      blocks: blocks,
+    );
+
+    _spentEdges
+      ..clear()
+      ..addAll(edges);
+
+    if (contentMoves && blocks.isNotEmpty) {
+      // Not awaited on purpose: the pointer events must not wait for saving.
+      unawaited(_saveBlocks(blocks));
+    }
+
+    return shift;
+  }
+
+  void _resetExpansion() => _spentEdges.clear();
+
+  // ============================================================
+  // محاية
   void setEraserSize(double size) {
     state = state.copyWith(eraserSize: size);
   }
@@ -204,7 +391,6 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
 
   // ============================================================
   // ألوان وأدوات
-  // ============================================================
   void setColor(Color color) {
     final selectedText = state.selectedTextBlock;
     if (selectedText != null) {
@@ -243,11 +429,10 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
 
   // ============================================================
   // تحديد: بلوكات محفوظة + strokes حيّة
-  // ============================================================
-
   void selectAt(Offset point) {
     _dragMoved = false;
     _dragSnapshotTaken = false;
+    _resetExpansion(); // every new touch starts fresh
 
     final bounds = state.hasSelection ? _selectionBounds() : null;
     if (bounds != null && bounds.inflate(6).contains(point)) {
@@ -258,20 +443,28 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
     }
 
     ContentBlock? hit;
+    // for (final block in state.blocks.reversed) {
+    //   if (block is TextBlock) {
+    //     final availableWidth =
+    //         (state.canvasSize.width - block.x).clamp(0.0, double.infinity);
+
+    //     final textRect = CanvasGeometry.blockRect(
+    //       block,
+    //       maxWidth: availableWidth,
+    //     );
+
+    //     if (textRect.contains(point)) {
+    //       hit = block;
+    //       break;
+    //     }
+    //   }
+    // }
     for (final block in state.blocks.reversed) {
-      if (block is TextBlock) {
-        final availableWidth =
-            (state.canvasSize.width - block.x).clamp(0.0, double.infinity);
-
-        final textRect = CanvasGeometry.blockRect(
-          block,
-          maxWidth: availableWidth,
-        );
-
-        if (textRect.contains(point)) {
-          hit = block;
-          break;
-        }
+      if (block is TextBlock &&
+          TextBlockLayout.boundsOf(block, canvasRight: state.canvasSize.width)
+              .contains(point)) {
+        hit = block;
+        break;
       }
     }
 
@@ -341,7 +534,13 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
       },
       selectedBlockIds: {
         for (final b in state.blocks)
-          if (b is TextBlock && rect.overlaps(CanvasGeometry.blockRect(b)))
+          // if (b is TextBlock && rect.overlaps(CanvasGeometry.blockRect(b)))
+          //   b.id,
+          if (b is TextBlock &&
+              rect.overlaps(TextBlockLayout.boundsOf(
+                b,
+                canvasRight: state.canvasSize.width,
+              )))
             b.id,
       },
     );
@@ -360,20 +559,16 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
     state = state.copyWith(clearMarqueeRect: true);
   }
 
-  Rect? _selectionBounds() {
-    final selectedStrokes = [
-      ...state.strokes,
-      for (final block in state.blocks)
-        if (block is InkBlock) ...block.strokes,
-    ].where((stroke) => state.selectedStrokeIds.contains(stroke.id)).toList();
-
-    return CanvasGeometry.selectionBounds(
-      blocks: state.blocks,
-      strokes: selectedStrokes,
-      selectedBlockIds: state.selectedBlockIds,
-      selectedStrokeIds: state.selectedStrokeIds,
-    );
-  }
+  /// One box around everything that is selected (null if nothing is).
+  /// SelectionGeometry already looks inside the ink blocks, so it only needs
+  /// the lists from the state.
+  Rect? _selectionBounds() => SelectionGeometry.boundsOf(
+        strokes: state.strokes,
+        blocks: state.blocks,
+        selectedBlockIds: state.selectedBlockIds,
+        selectedStrokeIds: state.selectedStrokeIds,
+        page: state.canvasSize,
+      );
 
   void _dragSelection(Offset point) {
     final last = _lastDragPoint;
@@ -406,61 +601,47 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
           state.selectedStrokeIds.contains(s.id) ? _shiftStroke(s, dx, dy) : s,
       ],
     );
+    checkAndExpandForSelection();
   }
 
-  Stroke _shiftStroke(Stroke s, double dx, double dy) => Stroke(
-        id: s.id,
-        points:
-            s.points.map((p) => StrokePoint(x: p.x + dx, y: p.y + dy)).toList(),
-        colorValue: s.colorValue,
-        strokeWidth: s.strokeWidth,
-        createdAt: s.createdAt,
+  // ---- moving things ------------------------------------------------------
+
+  Stroke _shiftStroke(Stroke s, double dx, double dy) => s.copyWith(
+        points: [
+          for (final p in s.points) StrokePoint(x: p.x + dx, y: p.y + dy),
+        ],
       );
 
+  /// Moves a whole block (used when the canvas grows on the left / top).
   ContentBlock _shiftBlock(ContentBlock block, double dx, double dy) {
     if (block is InkBlock) {
-      return InkBlock(
-        id: block.id,
-        pageId: block.pageId,
-        orderIndex: block.orderIndex,
+      return block.copyWith(
         x: block.x + dx,
         y: block.y + dy,
-        width: block.width,
-        height: block.height,
-        strokes: block.strokes.map((s) => _shiftStroke(s, dx, dy)).toList(),
-        recognizedText: block.recognizedText,
-        createdAt: block.createdAt,
-        updatedAt: block.updatedAt,
+        strokes: [for (final s in block.strokes) _shiftStroke(s, dx, dy)],
       );
     }
     if (block is TextBlock) {
       return _rebuildText(block, x: block.x + dx, y: block.y + dy);
     }
+    if (block is ImageBlock) {
+      return block.copyWith(x: block.x + dx, y: block.y + dy);
+    }
     return block;
   }
 
+  /// Moves only the SELECTED strokes inside an ink block.
   InkBlock _shiftSelectedInkBlock(InkBlock block, double dx, double dy) {
-    if (!block.strokes
-        .any((stroke) => state.selectedStrokeIds.contains(stroke.id))) {
-      return block;
-    }
+    final selectedIds = state.selectedStrokeIds;
+    if (!block.strokes.any((s) => selectedIds.contains(s.id))) return block;
 
-    return InkBlock(
-      id: block.id,
-      pageId: block.pageId,
-      orderIndex: block.orderIndex,
-      x: block.x,
-      y: block.y,
-      width: block.width,
-      height: block.height,
+    return block.copyWith(
       strokes: [
         for (final stroke in block.strokes)
-          state.selectedStrokeIds.contains(stroke.id)
+          selectedIds.contains(stroke.id)
               ? _shiftStroke(stroke, dx, dy)
               : stroke,
       ],
-      recognizedText: block.recognizedText,
-      createdAt: block.createdAt,
       updatedAt: DateTime.now(),
     );
   }
@@ -468,13 +649,8 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   //_______________________________________
 //Resize handles:
   void beginResize() {
-    final bounds = SelectionGeometry.boundsOf(
-      strokes: state.strokes,
-      blocks: state.blocks,
-      selectedBlockIds: state.selectedBlockIds,
-      selectedStrokeIds: state.selectedStrokeIds,
-      page: state.canvasSize,
-    );
+    _resetExpansion();
+    final bounds = _selectionBounds();
     if (bounds == null) return;
 
     _resizeStartStrokes = state.strokes;
@@ -535,6 +711,21 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
           _scaleBlock(b, transform, blockIds, strokeIds),
       ],
     );
+
+    // If the canvas grew on the left / top, the snapshot we start from must
+    // move with it, or the next frame would put the content back.
+    final expansion = checkAndExpandForSelection();
+    if (expansion != Offset.zero) {
+      _resizeStartStrokes = [
+        for (final stroke in startStrokes)
+          _shiftStroke(stroke, expansion.dx, expansion.dy),
+      ];
+      _resizeStartBlocks = [
+        for (final block in startBlocks)
+          _shiftBlock(block, expansion.dx, expansion.dy),
+      ];
+      _resizeStartBounds = startBounds.shift(expansion);
+    }
   }
 
   /// Finger lifted. Saves the changed blocks, like endSelection() does.
@@ -612,22 +803,34 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   }
 
   //_______________________________________
+  // Saving
 
-  Future<void> _persistSelectedBlocks() async {
+  /// Saves [blocks] one by one. If some fail, the last failure is shown.
+  Future<void> _saveBlocks(Iterable<ContentBlock> blocks) async {
     final saveBlock = ref.read(saveBlockUseCaseProvider);
     Failure? lastFailure;
 
-    for (final block in state.blocks) {
-      final isSelectedBlock = state.selectedBlockIds.contains(block.id);
-      final hasSelectedInk = block is InkBlock &&
-          block.strokes
-              .any((stroke) => state.selectedStrokeIds.contains(stroke.id));
-      if (!isSelectedBlock && !hasSelectedInk) continue;
+    for (final block in blocks) {
       final result = await saveBlock(SaveBlockParams(block));
       result.fold((f) => lastFailure = f, (_) {});
     }
 
     if (lastFailure != null) state = state.copyWith(error: lastFailure);
+  }
+
+  /// Saves the selected text blocks and the ink blocks that contain
+  /// selected strokes.
+  Future<void> _persistSelectedBlocks() {
+    final strokeIds = state.selectedStrokeIds;
+    final blockIds = state.selectedBlockIds;
+
+    return _saveBlocks([
+      for (final block in state.blocks)
+        if (blockIds.contains(block.id) ||
+            (block is InkBlock &&
+                block.strokes.any((s) => strokeIds.contains(s.id))))
+          block,
+    ]);
   }
 
   Future<void> _replaceBlockAndPersist(ContentBlock updated) async {
@@ -705,8 +908,6 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
 
   // ============================================================
   // نص
-  // ============================================================
-
   TextBlock _rebuildText(
     TextBlock block, {
     String? text,
@@ -717,7 +918,13 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   }) {
     final newText = text ?? block.text;
     final newFontSize = fontSize ?? block.fontSize;
-    final width = block.width > 0 ? block.width : _defaultTextWidth;
+    //   final width = block.width > 0 ? block.width : _defaultTextWidth;
+    // Changing only the font size (the slider) scales the width too, so the
+    // text keeps the same line breaks and just gets bigger or smaller.
+    final oldWidth = block.width > 0 ? block.width : _defaultTextWidth;
+    final width = (fontSize != null && block.fontSize > 0)
+        ? oldWidth * fontSize / block.fontSize
+        : oldWidth;
 
     return TextBlock(
       id: block.id,
@@ -811,6 +1018,16 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
         );
       },
     );
+  }
+  Future<void> saveOnExit() async {
+    if (state.strokes.isEmpty || state.isRecognizing) return;
+
+    // A pending "convert to text" refers to live strokes that are about to be
+    // saved as ink, so drop it (otherwise confirming it later would add the
+    // text AND leave the ink).
+    if (state.pendingRecognizedText != null) discardRecognition();
+
+    await saveCurrentDrawing();
   }
 
   Future<void> clear() async {

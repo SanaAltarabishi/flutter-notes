@@ -33,6 +33,8 @@ class CanvasToolbar extends StatefulWidget {
   final ValueChanged<double> onSliderChanged;
   final ValueChanged<double>? onSliderChangeEnd;
   final ValueChanged<CanvasTool> onToolChanged;
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
   final VoidCallback onFitPage;
   final bool showColor;
   final bool showSize;
@@ -62,6 +64,8 @@ class CanvasToolbar extends StatefulWidget {
     required this.onSliderChanged,
     this.onSliderChangeEnd,
     required this.onToolChanged,
+    required this.onZoomIn,
+    required this.onZoomOut,
     required this.onFitPage,
     required this.showColor,
     required this.showSize,
@@ -78,8 +82,10 @@ class _CanvasToolbarState extends State<CanvasToolbar> {
   final ScrollController _toolsScrollController = ScrollController();
   // Shows / hides the floating panel (it is not part of the layout).
   final OverlayPortalController _panelController = OverlayPortalController();
+
   /// Connects the panel to the toolbar, so it opens right under it.
   final LayerLink _panelLink = LayerLink();
+
   /// The bar and the panel share this id: a tap inside either one is "inside".
   final Object _tapGroup = Object();
   bool get _hasAdvancedControls => widget.showColor || widget.showSize;
@@ -120,7 +126,7 @@ class _CanvasToolbarState extends State<CanvasToolbar> {
       link: _panelLink,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration:const BoxDecoration(
+        decoration: const BoxDecoration(
           color: AppColors.lightGrey,
           border: Border(
             bottom: BorderSide(color: AppColors.greyBorder),
@@ -133,7 +139,8 @@ class _CanvasToolbarState extends State<CanvasToolbar> {
 
               return OverlayPortal(
                 controller: _panelController,
-                overlayChildBuilder: (_) => _buildPanelOverlay(panelWidth, isRtl),
+                overlayChildBuilder: (_) =>
+                    _buildPanelOverlay(panelWidth, isRtl),
                 child: TapRegion(
                   groupId: _tapGroup,
                   // Fixed height: the bar can never grow or shrink.
@@ -161,6 +168,8 @@ class _CanvasToolbarState extends State<CanvasToolbar> {
                             isRecognizing: widget.isRecognizing,
                             selectedLanguage: widget.selectedLanguage,
                             onToolChanged: widget.onToolChanged,
+                            onZoomIn: widget.onZoomIn,
+                            onZoomOut: widget.onZoomOut,
                             onFitPage: widget.onFitPage,
                             onAddText: widget.onAddText,
                             onUndo: widget.onUndo,
@@ -289,6 +298,7 @@ class _StyleButton extends StatelessWidget {
     );
   }
 }
+
 //________________
 // The scrollable tools. Every slot is always present: actions that do not apply are disabled, not removed, so nothing shifts sideways.
 class _ToolsRow extends StatelessWidget {
@@ -300,6 +310,8 @@ class _ToolsRow extends StatelessWidget {
   final String selectedLanguage;
 
   final ValueChanged<CanvasTool> onToolChanged;
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
   final VoidCallback onFitPage;
   final VoidCallback onAddText;
   final VoidCallback onUndo;
@@ -320,6 +332,8 @@ class _ToolsRow extends StatelessWidget {
     required this.isRecognizing,
     required this.selectedLanguage,
     required this.onToolChanged,
+    required this.onZoomIn,
+    required this.onZoomOut,
     required this.onFitPage,
     required this.onAddText,
     required this.onUndo,
@@ -347,6 +361,16 @@ class _ToolsRow extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            IconButton(
+              icon: const Icon(Icons.zoom_out),
+              onPressed: onZoomOut,
+              tooltip: 'Zoom out',
+            ),
+            IconButton(
+              icon: const Icon(Icons.zoom_in),
+              onPressed: onZoomIn,
+              tooltip: 'Zoom in',
+            ),
             IconButton(
               icon: const Icon(Icons.fit_screen),
               onPressed: onFitPage,
@@ -505,7 +529,8 @@ class _StylePanel extends StatelessWidget {
       curve: Curves.easeOut,
       builder: (context, t, child) => Opacity(
         opacity: t,
-        child: Transform.translate(offset: Offset(0, (1 - t) * -6), child: child),
+        child:
+            Transform.translate(offset: Offset(0, (1 - t) * -6), child: child),
       ),
       child: Material(
         color: AppColors.lightGrey,
@@ -671,7 +696,8 @@ class _LanguageConvertGroup extends StatelessWidget {
           ),
           const SizedBox(width: 2),
           FilledButton.icon(
-            onPressed: isRecognizing ? null : (onConvert ?? onConvertUnavailable),
+            onPressed:
+                isRecognizing ? null : (onConvert ?? onConvertUnavailable),
             style: onConvert == null
                 ? FilledButton.styleFrom(
                     backgroundColor: AppColors.greyBorder,

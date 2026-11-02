@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freenotes_app/core/constants/app_strings.dart';
+import 'package:freenotes_app/core/widgets/app_background.dart';
+import 'package:freenotes_app/core/widgets/staggered_fade_slide.dart';
 import 'package:freenotes_app/features/notes/presentation/books/widgets/retry_widget.dart';
 import 'package:freenotes_app/features/notes/presentation/canvas/canvas_page.dart';
 import 'package:freenotes_app/features/notes/presentation/pages/pages_provider.dart';
 import 'package:freenotes_app/features/notes/presentation/pages/widgets/page_card.dart';
+import 'package:freenotes_app/core/widgets/expandable_search_app_bar.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/errors/failures.dart';
 import '../../domain/entities/book.dart';
 import '../../domain/entities/page.dart';
 
-class PagesPage extends ConsumerWidget {
+class PagesPage extends ConsumerStatefulWidget {
   final Book book;
 
   const PagesPage({
@@ -18,68 +22,128 @@ class PagesPage extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PagesPage> createState() => _PagesPageState();
+}
+
+class _PagesPageState extends ConsumerState<PagesPage> {
+  String _searchQuery = '';
+
+  @override
+  Widget build(BuildContext context) {
     final pagesAsync = ref.watch(
-      pagesProvider(book.id),
+      pagesProvider(widget.book.id),
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(book.title),
-        centerTitle: true,
-      ),
-      body: pagesAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        error: (error, stackTrace) {
-          return RetryWidget.fromFailure(
-            error as Failure,
-            onRetry: () {
-              // Refresh the pages
-              //   ref.read(pagesProvider(book.id).notifier).refresh();
-            },
-          );
+      extendBodyBehindAppBar: true,
+      appBar: ExpandableSearchAppBar(
+        title: Text(widget.book.title),
+        hintText: AppStrings.searchPages,
+        backgroundColor: AppColors.transparent,
+        onQueryChanged: (query) {
+          setState(() {
+            _searchQuery = query;
+          });
+          ref.read(pagesProvider(widget.book.id).notifier).search(query);
         },
-        data: (state) {
-          if (state.pages.isEmpty) {
-            return const _EmptyPagesView();
-          }
+      ),
+      body: AppBackground(
+        accentColor: Color(widget.book.coverColorValue),
+        child: Column(
+          children: [
+            Expanded(
+              child: pagesAsync.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+                error: (error, stackTrace) {
+                  return RetryWidget.fromFailure(
+                    error as Failure,
+                    onRetry: () {
+                      ref
+                          .read(pagesProvider(widget.book.id).notifier)
+                          .search(_searchQuery);
+                    },
+                  );
+                },
+                data: (state) {
+                  if (state.pages.isEmpty) {
+                    return _searchQuery.trim().isEmpty
+                        ? const _EmptyPagesView()
+                        : const Center(
+                            child: Text(AppStrings.noPagesMatch),
+                          );
+                  }
 
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: state.pages.length,
-            itemBuilder: (context, index) {
-              final page = state.pages[index];
+                  return AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      final slide = Tween<Offset>(
+                        begin: const Offset(0, 0.025),
+                        end: Offset.zero,
+                      ).chain(CurveTween(curve: Curves.easeOutCubic));
 
-              return PageCard(
-                page: page,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CanvasPage(
-                        pageId: page.id,
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: animation.drive(slide),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: ListView.builder(
+                      key: ValueKey(
+                        state.pages.map((page) => page.id).join('|'),
                       ),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: state.pages.length,
+                      itemBuilder: (context, index) {
+                        final page = state.pages[index];
+
+                        return StaggeredFadeSlide(
+                          index: index,
+                          child: PageCard(
+                            page: page,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => CanvasPage(
+                                    pageTitle: page.name,
+                                    pageId: page.id,
+                                  ),
+                                ),
+                              );
+                            },
+                            onEditName: () => _editPageName(
+                              context,
+                              ref,
+                              widget.book.id,
+                              page,
+                            ),
+                            onDelete: () {
+                              _confirmDelete(
+                                context,
+                                ref,
+                                widget.book.id,
+                                page.id,
+                              );
+                            },
+                          ),
+                        );
+                      },
                     ),
                   );
                 },
-                onEditName: () => _editPageName(context, ref, book.id, page),
-                onDelete: () {
-                  _confirmDelete(
-                    context,
-                    ref,
-                    book.id,
-                    page.id,
-                  );
-                },
-              );
-            },
-          );
-        },
+              ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _createPage(context, ref, book.id),
+        onPressed: () => _createPage(context, ref, widget.book.id),
         icon: const Icon(Icons.add),
         label: const Text(AppStrings.newPage),
       ),
@@ -125,9 +189,7 @@ Future<void> _editPageName(
     return;
   }
 
-  await ref
-      .read(pagesProvider(bookId).notifier)
-      .updatePageName(page, name);
+  await ref.read(pagesProvider(bookId).notifier).updatePageName(page, name);
 }
 
 //____________

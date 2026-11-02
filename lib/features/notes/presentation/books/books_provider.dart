@@ -6,6 +6,7 @@ import '../../domain/entities/book.dart';
 import '../../domain/usecases/books/create_book.dart';
 import '../../domain/usecases/books/delete_book.dart';
 import '../../domain/usecases/books/update_book.dart';
+import '../../domain/usecases/books/search_books.dart';
 import 'books_state.dart';
 import '../providers/core_providers.dart';
 
@@ -14,6 +15,9 @@ final booksProvider =
 
 //___________________________________________________
 class BooksNotifier extends AsyncNotifier<BooksState> {
+  String _searchQuery = '';
+  int _searchRequest = 0;
+
   //depend of the build , when we open the ui we need to get the books from the database and show them in the ui
   //so its asyncronous operation so we need to use asyncNotifier
   @override
@@ -64,12 +68,21 @@ AsyncError      AsyncData
 //___________________________________________________
 
   Future<void> refresh() async {
-    //ref.read(booksProvider.notifier).refresh();
+    await search(_searchQuery);
+  }
+
+  Future<void> search(String query) async {
+    final normalizedQuery = query.trim();
+    _searchQuery = normalizedQuery;
+    final request = ++_searchRequest;
     state = const AsyncLoading();
 
-    final getBooks = ref.read(getBooksUseCaseProvider);
-    final result = await getBooks(const NoParams());
+    final result = normalizedQuery.isEmpty
+        ? await ref.read(getBooksUseCaseProvider)(const NoParams())
+        : await ref.read(searchBooksUseCaseProvider)(
+            SearchBooksParams(normalizedQuery));
 
+    if (request != _searchRequest) return;
     state = result.fold(
       (failure) => AsyncError(failure, StackTrace.current),
       (books) => AsyncData(BooksState(books: books)),
@@ -97,7 +110,9 @@ AsyncError      AsyncData
     state = result.fold(
       (failure) => AsyncData(current.copyWith(error: failure)),
       (book) => AsyncData(current.copyWith(
-        books: [...current.books, book],
+        books: _matchesSearch(book.title)
+            ? [...current.books, book]
+            : current.books,
         // error: null,
         clearError: true,
       )),
@@ -135,13 +150,26 @@ AsyncError      AsyncData
       (failure) => AsyncData(current.copyWith(error: failure)),
       // نفس الفكرة: نستبدل الكتاب القديم بالجديد جوا القائمة، بدون إعادة تحميل
       (_) => AsyncData(current.copyWith(
-        books: [
-          for (final b in current.books)
-            if (b.id == book.id) book else b,
-        ],
+        books: _updatedBooks(current.books, book),
         clearError: true,
       )),
     );
+  }
+
+  bool _matchesSearch(String title) {
+    return _searchQuery.isEmpty ||
+        title.toLowerCase().contains(_searchQuery.toLowerCase());
+  }
+
+  List<Book> _updatedBooks(List<Book> books, Book updatedBook) {
+    if (!_matchesSearch(updatedBook.title)) {
+      return books.where((book) => book.id != updatedBook.id).toList();
+    }
+
+    return [
+      for (final book in books)
+        if (book.id == updatedBook.id) updatedBook else book,
+    ];
   }
 
 //___________________________________________________

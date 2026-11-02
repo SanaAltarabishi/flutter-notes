@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:freenotes_app/features/notes/domain/entities/content_block.dart';
 import 'package:freenotes_app/features/notes/domain/entities/stroke.dart';
+import 'text_block_layout.dart';
 
 /// One rectangle around EVERYTHING that is selected.
 ///
@@ -61,26 +62,30 @@ class SelectionGeometry {
         if (p.y < minY) minY = p.y;
         if (p.y > maxY) maxY = p.y;
       }
-      final r = Rect.fromLTRB(minX, minY, maxX, maxY).inflate(stroke.strokeWidth / 2);
+      final r =
+          Rect.fromLTRB(minX, minY, maxX, maxY).inflate(stroke.strokeWidth / 2);
       bounds = bounds?.expandToInclude(r) ?? r;
     }
     return bounds;
   }
 
-  // Same layout as the painter's _textPainterFor.
-  static Rect _textBounds(TextBlock block, Size page) {
-    final availableWidth = (page.width - block.x).clamp(0.0, double.infinity);
-    final painter = TextPainter(
-      text: TextSpan(
-        text: block.text,
-        style: TextStyle(
-          fontFamily: block.fontFamily,
-          fontSize: block.fontSize,
-          color: Color(block.colorValue),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: availableWidth);
-    return Rect.fromLTWH(block.x, block.y, painter.width, painter.height);
-  }
+  // // Same layout as the painter's _textPainterFor.
+  // static Rect _textBounds(TextBlock block, Size page) {
+  //   final availableWidth = (page.width - block.x).clamp(0.0, double.infinity);
+  //   final painter = TextPainter(
+  //     text: TextSpan(
+  //       text: block.text,
+  //       style: TextStyle(
+  //         fontFamily: block.fontFamily,
+  //         fontSize: block.fontSize,
+  //         color: Color(block.colorValue),
+  //       ),
+  //     ),
+  //     textDirection: TextDirection.ltr,
+  //   )..layout(maxWidth: availableWidth);
+  //   return Rect.fromLTWH(block.x, block.y, painter.width, painter.height);
+  // }
+  // Same layout as the painter: see TextBlockLayout.
+  static Rect _textBounds(TextBlock block, Size page) =>
+      TextBlockLayout.boundsOf(block, canvasRight: page.width);
 }

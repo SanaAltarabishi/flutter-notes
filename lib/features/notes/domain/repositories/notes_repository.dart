@@ -7,6 +7,7 @@ import '../entities/page.dart';
 abstract class NotesRepository {
   // Books
   Future<Either<Failure, List<Book>>> getBooks();
+  Future<Either<Failure, List<Book>>> searchBooks(String query);
   Future<Either<Failure, Book>> getBook(String id);
   Future<Either<Failure, Book>> createBook(Book book);
   Future<Either<Failure, void>> updateBook(Book book);
@@ -14,6 +15,10 @@ abstract class NotesRepository {
 
   // Pages
   Future<Either<Failure, List<NotePage>>> getPages(String bookId);
+  Future<Either<Failure, List<NotePage>>> searchPages(
+    String bookId,
+    String query,
+  );
   Future<Either<Failure, NotePage>> getPage(String id);
   Future<Either<Failure, NotePage>> createPage(
     NotePage page,

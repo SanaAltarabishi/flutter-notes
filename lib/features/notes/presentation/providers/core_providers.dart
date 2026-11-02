@@ -17,9 +17,11 @@ import '../../domain/usecases/handwriting/convert_handwriting.dart';
 import '../../domain/usecases/books/create_book.dart';
 import '../../domain/usecases/pages/create_page.dart';
 import '../../domain/usecases/books/get_books.dart';
+import '../../domain/usecases/books/search_books.dart';
 import '../../domain/usecases/pages/delete_page.dart';
 import '../../domain/usecases/pages/get_pages.dart';
 import '../../domain/usecases/pages/update_page.dart';
+import '../../domain/usecases/pages/search_pages.dart';
 
 //CORE:
 final dioProvider = Provider<Dio>((ref) {
@@ -65,6 +67,10 @@ final getBooksUseCaseProvider = Provider<GetBooks>((ref) {
   return GetBooks(ref.watch(notesRepositoryProvider));
 });
 
+final searchBooksUseCaseProvider = Provider<SearchBooks>((ref) {
+  return SearchBooks(ref.watch(notesRepositoryProvider));
+});
+
 final createBookUseCaseProvider = Provider<CreateBook>((ref) {
   return CreateBook(ref.watch(notesRepositoryProvider));
 });
@@ -79,6 +85,10 @@ final updateBookUseCaseProvider = Provider<UpdateBook>((ref) {
 //? pages:
 final getPagesUseCaseProvider = Provider<GetPages>((ref) {
   return GetPages(ref.watch(notesRepositoryProvider));
+});
+
+final searchPagesUseCaseProvider = Provider<SearchPages>((ref) {
+  return SearchPages(ref.watch(notesRepositoryProvider));
 });
 
 final createPageUseCaseProvider = Provider<CreatePage>((ref) {

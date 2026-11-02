@@ -14,6 +14,7 @@ class CanvasArea extends StatefulWidget {
   final CanvasNotifier notifier;
   final TransformationController transformationController;
   final ValueChanged<Size> onViewportSizeChanged;
+  final ValueChanged<Offset> onCanvasExpanded;
   final String selectedLanguage;
   final VoidCallback onEditPendingText;
   const CanvasArea(
@@ -22,6 +23,7 @@ class CanvasArea extends StatefulWidget {
       required this.notifier,
       required this.transformationController,
       required this.onViewportSizeChanged,
+      required this.onCanvasExpanded,
       required this.selectedLanguage,
       required this.onEditPendingText});
 
@@ -31,6 +33,15 @@ class CanvasArea extends StatefulWidget {
 
 class _CanvasAreaState extends State<CanvasArea> {
   bool _initialScaleApplied = false;
+
+  @override
+  void didUpdateWidget(covariant CanvasArea oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.state.canvasExpansionVersion !=
+        oldWidget.state.canvasExpansionVersion) {
+      widget.onCanvasExpanded(widget.state.canvasExpansionShift);
+    }
+  }
 //___________________________________________________
 // eraser cursor
 // Eraser radius on SCREEN, in logical pixels.
@@ -129,13 +140,13 @@ class _CanvasAreaState extends State<CanvasArea> {
                 transformationController: widget.transformationController,
                 constrained: false,
                 panEnabled: isPan,
-                scaleEnabled: isPan,
+                scaleEnabled: true,
                 minScale: fitScale,
-                maxScale: 4,
+                maxScale: 10,
                 boundaryMargin: const EdgeInsets.all(200),
                 child: SizedBox(
-                  width: AppConstants.pageWidth,
-                  height: AppConstants.pageHeight,
+                  width: widget.state.canvasSize.width,
+                  height: widget.state.canvasSize.height,
                   child: Stack(
                     children: [
                       if (isPan)
@@ -271,7 +282,8 @@ class _CanvasAreaState extends State<CanvasArea> {
         return;
 
       default:
-        widget.notifier.addPoint(point);
+        final adjustedPoint = widget.notifier.checkAndExpandCanvas(point);
+        widget.notifier.addPoint(adjustedPoint);
     }
   }
 
@@ -287,6 +299,7 @@ class _CanvasAreaState extends State<CanvasArea> {
 
       default:
         widget.notifier.endStroke();
+      //  widget.notifier.saveCurrentDrawing();
     }
   }
 }

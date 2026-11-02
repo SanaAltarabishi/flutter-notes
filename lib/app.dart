@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freenotes_app/core/constants/app_colors.dart';
 import 'package:freenotes_app/core/constants/app_strings.dart';
-import 'features/notes/presentation/pages/home_page.dart';
+import 'home_page.dart';
 
 class FreeNotesApp extends StatelessWidget {
   const FreeNotesApp({super.key});
@@ -19,7 +19,7 @@ class FreeNotesApp extends StatelessWidget {
           ),
           useMaterial3: true,
         ),
-        home: const HomePage(),
+        home: const SplashPage(),
       ),
     );
   }

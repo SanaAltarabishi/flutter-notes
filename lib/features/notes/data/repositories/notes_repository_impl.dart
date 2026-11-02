@@ -33,6 +33,18 @@ class NotesRepositoryImpl
       return Left(CacheFailure('Failed to load books: $e'));
     }
   }
+
+//___________________________________________________
+  @override
+  Future<Either<Failure, List<Book>>> searchBooks(String query) async {
+    try {
+      final models = await localDataSource.searchBooks(query);
+      return Right(models.map((m) => m.toEntity()).toList());
+    } catch (e) {
+      return Left(CacheFailure('Failed to search books: $e'));
+    }
+  }
+
 //___________________________________________________
 
   @override
@@ -88,18 +100,37 @@ class NotesRepositoryImpl
   Future<Either<Failure, List<NotePage>>> getPages(String bookId) async {
     try {
       final pageModels = await localDataSource.getPages(bookId);
-      final pages = <NotePage>[];
-      for (final pageModel in pageModels) {
-        final blockModels = await localDataSource.getBlocks(pageModel.id);
-        pages.add(pageModel.toEntity(blockModels: blockModels));
-      }
-      return Right(pages);
+      return Right(await _toPages(pageModels));
     } catch (e) {
       return Left(CacheFailure('Failed to load pages: $e'));
     }
   }
-//___________________________________________________
 
+//___________________________________________________
+  @override
+  Future<Either<Failure, List<NotePage>>> searchPages(
+    String bookId,
+    String query,
+  ) async {
+    try {
+      final pageModels = await localDataSource.searchPages(bookId, query);
+      return Right(await _toPages(pageModels));
+    } catch (e) {
+      return Left(CacheFailure('Failed to search pages: $e'));
+    }
+  }
+
+//___________________________________________________
+  Future<List<NotePage>> _toPages(List<PageModel> pageModels) async {
+    final pages = <NotePage>[];
+    for (final pageModel in pageModels) {
+      final blockModels = await localDataSource.getBlocks(pageModel.id);
+      pages.add(pageModel.toEntity(blockModels: blockModels));
+    }
+    return pages;
+  }
+
+//___________________________________________________
   @override
   Future<Either<Failure, NotePage>> getPage(String id) async {
     try {

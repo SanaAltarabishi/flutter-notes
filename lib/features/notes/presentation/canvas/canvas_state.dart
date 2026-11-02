@@ -18,6 +18,8 @@ class CanvasState {
   final bool isRecognizing;
   final Failure? error;
   final Size canvasSize;
+  final Offset canvasExpansionShift;
+  final int canvasExpansionVersion;
   final List<ContentBlock> blocks;
   final double eraserSize;
 
@@ -46,6 +48,8 @@ class CanvasState {
       AppConstants.pageWidth,
       AppConstants.pageHeight,
     ),
+    this.canvasExpansionShift = Offset.zero,
+    this.canvasExpansionVersion = 0,
     this.blocks = const [],
     this.canUndo = false,
     this.canRedo = false,
@@ -67,6 +71,8 @@ class CanvasState {
     CanvasTool? currentTool,
     bool? isRecognizing,
     Size? canvasSize,
+    Offset? canvasExpansionShift,
+    int? canvasExpansionVersion,
     List<ContentBlock>? blocks,
     Failure? error,
     bool clearError = false,
@@ -93,6 +99,9 @@ class CanvasState {
       currentTool: currentTool ?? this.currentTool,
       isRecognizing: isRecognizing ?? this.isRecognizing,
       canvasSize: canvasSize ?? this.canvasSize,
+      canvasExpansionShift: canvasExpansionShift ?? this.canvasExpansionShift,
+      canvasExpansionVersion:
+          canvasExpansionVersion ?? this.canvasExpansionVersion,
       blocks: blocks ?? this.blocks,
       error: clearError ? null : (error ?? this.error),
       canUndo: canUndo ?? this.canUndo,
@@ -135,7 +144,7 @@ class CanvasState {
   }
 
 //___________________________________________________
-double getEffectiveEraserRadius(double currentScale) {
+  double getEffectiveEraserRadius(double currentScale) {
     // نتجنب القسمة على صفر أو قيم غير منطقية
     final safeScale = currentScale > 0 ? currentScale : 1.0;
 

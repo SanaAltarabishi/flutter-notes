@@ -26,6 +26,20 @@ Iterable<BookModel>
 List<BookModel>
 */
   }
+
+//_______________________________________
+  @override
+  Future<List<BookModel>> searchBooks(String query) async {
+    final db = await dbHelper.database;
+    final maps = await db.query(
+      'books',
+      where: 'title LIKE ? COLLATE NOCASE',
+      whereArgs: ['%$query%'],
+      orderBy: 'updated_at DESC',
+    );
+    return maps.map((m) => BookModel.fromMap(m)).toList();
+  }
+
 //_______________________________________
 
   @override
@@ -75,12 +89,24 @@ and helps avoid SQL injection/escaping issues.
 //pages :
   @override
   Future<List<PageModel>> getPages(String bookId) async {
-
     final db = await dbHelper.database;
     final maps = await db.query(
       'pages',
       where: 'book_id = ?',
       whereArgs: [bookId],
+      orderBy: 'order_index ASC',
+    );
+    return maps.map((m) => PageModel.fromMap(m)).toList();
+  }
+
+//_______________________________________
+  @override
+  Future<List<PageModel>> searchPages(String bookId, String query) async {
+    final db = await dbHelper.database;
+    final maps = await db.query(
+      'pages',
+      where: 'book_id = ? AND name LIKE ? COLLATE NOCASE',
+      whereArgs: [bookId, '%$query%'],
       orderBy: 'order_index ASC',
     );
     return maps.map((m) => PageModel.fromMap(m)).toList();

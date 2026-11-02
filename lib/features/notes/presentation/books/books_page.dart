@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:freenotes_app/core/constants/app_colors.dart';
 import 'package:freenotes_app/core/constants/app_strings.dart';
+import 'package:freenotes_app/core/widgets/app_background.dart';
+import 'package:freenotes_app/core/widgets/staggered_fade_slide.dart';
 import '../../../../core/errors/failures.dart';
 import '../../domain/entities/book.dart';
 import '../../presentation/pages/pages_page.dart';
@@ -10,12 +13,20 @@ import 'widgets/book_form_dialog.dart';
 import 'widgets/delete_book_dialog.dart';
 import 'widgets/retry_widget.dart';
 import 'widgets/book_options_sheet.dart';
+import '../../../../core/widgets/expandable_search_app_bar.dart';
 
-class BooksPage extends ConsumerWidget {
+class BooksPage extends ConsumerStatefulWidget {
   const BooksPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BooksPage> createState() => _BooksPageState();
+}
+
+class _BooksPageState extends ConsumerState<BooksPage> {
+  String _searchQuery = '';
+
+  @override
+  Widget build(BuildContext context) {
     ref.listen(booksProvider, (previous, next) {
       final error = next.valueOrNull?.error;
 
@@ -32,46 +43,87 @@ class BooksPage extends ConsumerWidget {
     });
     final booksAsync = ref.watch(booksProvider);
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
+      extendBodyBehindAppBar: true,
+      appBar: ExpandableSearchAppBar(
         title: const Text(AppStrings.myBooks),
+        hintText: AppStrings.searchBooks,
+        backgroundColor: AppColors.transparent,
+        onQueryChanged: (query) {
+          setState(() {
+            _searchQuery = query;
+          });
+          ref.read(booksProvider.notifier).search(query);
+        },
       ),
-      body: booksAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        error: (error, stackTrace) {
-          return RetryWidget.fromFailure(
-            error as Failure,
-            onRetry: () {
-              ref.read(booksProvider.notifier).refresh();
-            },
-          );
-        },
-        data: (state) {
-          if (state.books.isEmpty) {
-            return const Center(
-              child: Text(
-                AppStrings.emptyBook,
-              ),
-            );
-          }
+      body: AppBackground(
+        safeArea: true,
+        child: Column(
+          children: [
+            Expanded(
+              child: booksAsync.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+                error: (error, stackTrace) {
+                  return RetryWidget.fromFailure(
+                    error as Failure,
+                    onRetry: () {
+                      ref.read(booksProvider.notifier).refresh();
+                    },
+                  );
+                },
+                data: (state) {
+                  if (state.books.isEmpty) {
+                    return Center(
+                      child: Text(
+                        _searchQuery.trim().isEmpty
+                            ? AppStrings.emptyBook
+                            : AppStrings.noBooksMatch,
+                      ),
+                    );
+                  }
 
-          return _BooksGrid(
-            books: state.books,
-            onBookLongPress: (book) {
-              _showBookOptions(
-                context,
-                ref,
-                book,
-              );
-            },
-            onBookEdit: (book) => _showBookForm(
-              context,
-              existingBook: book,
+                  return AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      final slide = Tween<Offset>(
+                        begin: const Offset(0, 0.025),
+                        end: Offset.zero,
+                      ).chain(CurveTween(curve: Curves.easeOutCubic));
+
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: animation.drive(slide),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: _BooksGrid(
+                      key: ValueKey(
+                        state.books.map((book) => book.id).join('|'),
+                      ),
+                      books: state.books,
+                      onBookLongPress: (book) {
+                        _showBookOptions(
+                          context,
+                          ref,
+                          book,
+                        );
+                      },
+                      onBookEdit: (book) => _showBookForm(
+                        context,
+                        existingBook: book,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-          );
-        },
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
@@ -158,6 +210,7 @@ class _BooksGrid extends StatelessWidget {
   final ValueChanged<Book> onBookEdit;
 
   const _BooksGrid({
+    super.key,
     required this.books,
     required this.onBookLongPress,
     required this.onBookEdit,
@@ -177,23 +230,26 @@ class _BooksGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final book = books[index];
 
-        return GestureDetector(
-          onLongPress: () => onBookLongPress(book),
-          child: BookCard(
-            title: book.title,
-            createdAt: book.createdAt,
-            coverColor: Color(book.coverColorValue),
-            onEdit: () => onBookEdit(book),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PagesPage(
-                    book: book,
+        return StaggeredFadeSlide(
+          index: index,
+          child: GestureDetector(
+            onLongPress: () => onBookLongPress(book),
+            child: BookCard(
+              title: book.title,
+              createdAt: book.createdAt,
+              coverColor: Color(book.coverColorValue),
+              onEdit: () => onBookEdit(book),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PagesPage(
+                      book: book,
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         );
       },

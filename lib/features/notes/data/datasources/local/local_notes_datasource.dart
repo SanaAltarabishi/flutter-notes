@@ -4,12 +4,14 @@ import '../../models/page_model.dart';
 
 abstract class LocalNotesDataSource {
   Future<List<BookModel>> getBooks();
+  Future<List<BookModel>> searchBooks(String query);
   Future<BookModel?> getBook(String id);
   Future<void> insertBook(BookModel book);
   Future<void> updateBook(BookModel book);
   Future<void> deleteBook(String id);
 
   Future<List<PageModel>> getPages(String bookId);
+  Future<List<PageModel>> searchPages(String bookId, String query);
   Future<PageModel?> getPage(String id);
   Future<void> insertPage(PageModel page);
   Future<void> updatePage(PageModel page);
@@ -18,7 +20,7 @@ abstract class LocalNotesDataSource {
     List<ContentBlockModel> blocks,
   );
   Future<void> deletePage(String id);
-Future<int> getNextPageOrderIndex(String bookId);
+  Future<int> getNextPageOrderIndex(String bookId);
 
   Future<List<ContentBlockModel>> getBlocks(String pageId);
   Future<void> insertBlock(ContentBlockModel block);

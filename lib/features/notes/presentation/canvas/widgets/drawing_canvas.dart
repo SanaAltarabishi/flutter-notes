@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:freenotes_app/core/constants/app_colors.dart';
 import '../../../domain/entities/stroke.dart';
 import '../../../domain/entities/content_block.dart';
+import '../utils/text_block_layout.dart';
 
 class DrawingCanvas extends StatelessWidget {
   final List<Stroke> strokes;
@@ -97,21 +98,39 @@ class _CanvasPainter extends CustomPainter {
     }
 
     if (marqueeRect != null) {
-      canvas.drawRect(
-          marqueeRect!, Paint()..color = AppColors.canvasSelection);
+      canvas.drawRect(marqueeRect!, Paint()..color = AppColors.canvasSelection);
       _drawSelectionOutline(canvas, marqueeRect!);
     }
   }
 
   void _drawGrid(Canvas canvas, Size size) {
+    final canvasBounds = Offset.zero & size;
+    final visibleBounds = canvas.getLocalClipBounds().intersect(canvasBounds);
+    if (visibleBounds.isEmpty) return;
+
     final paint = Paint()
       ..color = AppColors.bookPageBackground
       ..strokeWidth = 0.5;
-    for (double x = 0; x < size.width; x += 40) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    const gridSpacing = 40.0;
+    final firstColumn =
+        (visibleBounds.left / gridSpacing).floor() * gridSpacing;
+    final lastColumn = (visibleBounds.right / gridSpacing).ceil() * gridSpacing;
+    final firstRow = (visibleBounds.top / gridSpacing).floor() * gridSpacing;
+    final lastRow = (visibleBounds.bottom / gridSpacing).ceil() * gridSpacing;
+
+    for (double x = firstColumn; x <= lastColumn; x += gridSpacing) {
+      canvas.drawLine(
+        Offset(x, visibleBounds.top),
+        Offset(x, visibleBounds.bottom),
+        paint,
+      );
     }
-    for (double y = 0; y < size.height; y += 40) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    for (double y = firstRow; y <= lastRow; y += gridSpacing) {
+      canvas.drawLine(
+        Offset(visibleBounds.left, y),
+        Offset(visibleBounds.right, y),
+        paint,
+      );
     }
   }
 
@@ -190,36 +209,41 @@ class _CanvasPainter extends CustomPainter {
     }
   }
 
+  // void _drawText(Canvas canvas, Size size, TextBlock block) {
+  //   final availableWidth = (size.width - block.x).clamp(0.0, double.infinity);
+
+  //   final painter = _textPainterFor(
+  //     block,
+  //     maxWidth: availableWidth,
+  //   );
+
+  //   painter.paint(
+  //     canvas,
+  //     Offset(block.x, block.y),
+  //   );
+  // }
   void _drawText(Canvas canvas, Size size, TextBlock block) {
-    final availableWidth = (size.width - block.x).clamp(0.0, double.infinity);
-
-    final painter = _textPainterFor(
-      block,
-      maxWidth: availableWidth,
-    );
-
-    painter.paint(
-      canvas,
-      Offset(block.x, block.y),
-    );
+    // `size.width` is the right edge of the canvas
+    TextBlockLayout.painterFor(block, canvasRight: size.width)
+        .paint(canvas, Offset(block.x, block.y));
   }
 
-  TextPainter _textPainterFor(TextBlock block,
-      {double maxWidth = double.infinity}) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: block.text,
-        style: TextStyle(
-          fontFamily: block.fontFamily,
-          fontSize: block.fontSize,
-          color: Color(block.colorValue),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    painter.layout(maxWidth: maxWidth); //block.width > 0 ? block.width : 220);
-    return painter;
-  }
+  // TextPainter _textPainterFor(TextBlock block,
+  //     {double maxWidth = double.infinity}) {
+  //   final painter = TextPainter(
+  //     text: TextSpan(
+  //       text: block.text,
+  //       style: TextStyle(
+  //         fontFamily: block.fontFamily,
+  //         fontSize: block.fontSize,
+  //         color: Color(block.colorValue),
+  //       ),
+  //     ),
+  //     textDirection: TextDirection.ltr,
+  //   );
+  //   painter.layout(maxWidth: maxWidth); //block.width > 0 ? block.width : 220);
+  //   return painter;
+  // }
 
   // ---- حدود العناصر (لإطار التحديد) ----
 
@@ -233,19 +257,20 @@ class _CanvasPainter extends CustomPainter {
     }
 
     if (block is TextBlock) {
-      final availableWidth = (size.width - block.x).clamp(0.0, double.infinity);
+      // final availableWidth = (size.width - block.x).clamp(0.0, double.infinity);
 
-      final painter = _textPainterFor(
-        block,
-        maxWidth: availableWidth,
-      );
+      // final painter = _textPainterFor(
+      //   block,
+      //   maxWidth: availableWidth,
+      // );
 
-      return Rect.fromLTWH(
-        block.x,
-        block.y,
-        painter.width,
-        painter.height,
-      );
+      // return Rect.fromLTWH(
+      //   block.x,
+      //   block.y,
+      //   painter.width,
+      //   painter.height,
+      // );
+      return TextBlockLayout.boundsOf(block, canvasRight: size.width);
     }
 
     return Rect.fromLTWH(

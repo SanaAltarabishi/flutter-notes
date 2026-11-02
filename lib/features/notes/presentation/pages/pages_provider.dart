@@ -5,6 +5,7 @@ import '../../domain/usecases/pages/create_page.dart';
 import '../../domain/usecases/pages/delete_page.dart';
 import '../../domain/usecases/pages/get_pages.dart';
 import '../../domain/usecases/pages/update_page.dart';
+import '../../domain/usecases/pages/search_pages.dart';
 import '../providers/core_providers.dart';
 
 final pagesProvider =
@@ -15,6 +16,8 @@ final pagesProvider =
 //___________________________________________________
 class PagesNotifier extends FamilyAsyncNotifier<PagesState, String> {
   late final String bookId;
+  String _searchQuery = '';
+  int _searchRequest = 0;
 
   @override
   Future<PagesState> build(String arg) async {
@@ -28,6 +31,25 @@ class PagesNotifier extends FamilyAsyncNotifier<PagesState, String> {
   }
 //___________________________________________________
 
+  Future<void> search(String query) async {
+    final normalizedQuery = query.trim();
+    _searchQuery = normalizedQuery;
+    final request = ++_searchRequest;
+    state = const AsyncLoading();
+
+    final result = normalizedQuery.isEmpty
+        ? await ref.read(getPagesUseCaseProvider)(GetPagesParams(bookId))
+        : await ref.read(searchPagesUseCaseProvider)(
+            SearchPagesParams(bookId, normalizedQuery),
+          );
+
+    if (request != _searchRequest) return;
+    state = result.fold(
+      (failure) => AsyncError(failure, StackTrace.current),
+      (pages) => AsyncData(PagesState(pages: pages)),
+    );
+  }
+
   Future<void> addPage(String name) async {
     final current = state.valueOrNull;
     if (current == null) return;
@@ -37,8 +59,12 @@ class PagesNotifier extends FamilyAsyncNotifier<PagesState, String> {
 
     state = result.fold(
       (failure) => AsyncData(current.copyWith(error: failure)),
-      (page) => AsyncData(
-          current.copyWith(pages: [...current.pages, page], clearError: true)),
+      (page) => AsyncData(current.copyWith(
+        pages: _matchesSearch(page.name)
+            ? [...current.pages, page]
+            : current.pages,
+        clearError: true,
+      )),
     );
   }
 //___________________________________________________
@@ -74,15 +100,28 @@ class PagesNotifier extends FamilyAsyncNotifier<PagesState, String> {
       (failure) => AsyncData(current.copyWith(error: failure)),
       (_) => AsyncData(
         current.copyWith(
-          pages: current.pages
-              .map((item) => item.id == page.id ? page.copyWith(name: name) : item)
-              .toList(),
+          pages: _updatedPages(current.pages, page.copyWith(name: name)),
           clearError: true,
         ),
       ),
     );
   }
 
+  bool _matchesSearch(String name) {
+    return _searchQuery.isEmpty ||
+        name.toLowerCase().contains(_searchQuery.toLowerCase());
+  }
+
+  List<NotePage> _updatedPages(List<NotePage> pages, NotePage updatedPage) {
+    if (!_matchesSearch(updatedPage.name)) {
+      return pages.where((item) => item.id != updatedPage.id).toList();
+    }
+
+    return [
+      for (final item in pages)
+        if (item.id == updatedPage.id) updatedPage else item,
+    ];
+  }
 
 //___________________________________________________
   void clearError() {
