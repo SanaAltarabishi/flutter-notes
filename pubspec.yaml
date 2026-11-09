@@ -24,6 +24,8 @@ dependencies:
   fpdart: ^1.2.0
   flex_color_picker: ^3.8.0
   flutter_launcher_icons: ^0.14.4
+  record: ^7.1.2
+  web_socket_channel: ^3.0.3
 
 dev_dependencies:
   flutter_test:

@@ -415,7 +415,7 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
   }
 
   void setTool(CanvasTool tool) {
-    final keepSelection = tool == CanvasTool.lasso || tool == CanvasTool.pan;
+    final keepSelection = tool == CanvasTool.lasso;
     state = state.copyWith(
       currentTool: tool,
       clearSelectedBlockIds: !keepSelection,
@@ -1019,6 +1019,7 @@ class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
       },
     );
   }
+
   Future<void> saveOnExit() async {
     if (state.strokes.isEmpty || state.isRecognizing) return;
 

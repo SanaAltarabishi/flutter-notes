@@ -36,6 +36,7 @@ class CanvasToolbar extends StatefulWidget {
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
   final VoidCallback onFitPage;
+  final VoidCallback onVoiceNotes;
   final bool showColor;
   final bool showSize;
 
@@ -67,6 +68,7 @@ class CanvasToolbar extends StatefulWidget {
     required this.onZoomIn,
     required this.onZoomOut,
     required this.onFitPage,
+    required this.onVoiceNotes,
     required this.showColor,
     required this.showSize,
   });
@@ -171,6 +173,7 @@ class _CanvasToolbarState extends State<CanvasToolbar> {
                             onZoomIn: widget.onZoomIn,
                             onZoomOut: widget.onZoomOut,
                             onFitPage: widget.onFitPage,
+                            onVoiceNotes: widget.onVoiceNotes,
                             onAddText: widget.onAddText,
                             onUndo: widget.onUndo,
                             onRedo: widget.onRedo,
@@ -313,6 +316,7 @@ class _ToolsRow extends StatelessWidget {
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
   final VoidCallback onFitPage;
+  final VoidCallback onVoiceNotes;
   final VoidCallback onAddText;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
@@ -335,6 +339,7 @@ class _ToolsRow extends StatelessWidget {
     required this.onZoomIn,
     required this.onZoomOut,
     required this.onFitPage,
+    required this.onVoiceNotes,
     required this.onAddText,
     required this.onUndo,
     required this.onRedo,
@@ -376,6 +381,12 @@ class _ToolsRow extends StatelessWidget {
               onPressed: onFitPage,
               tooltip: AppStrings.fitPage,
             ),
+            IconButton(
+              icon: const Icon(Icons.mic_none),
+              onPressed: onVoiceNotes,
+              tooltip: 'ملاحظات صوتية',
+            ),
+            const VerticalDivider(width: 1),
             _ToolButton(
               icon: Icons.back_hand_outlined,
               isSelected: currentTool == CanvasTool.pan,

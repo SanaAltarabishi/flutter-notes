@@ -11,6 +11,7 @@ import 'widgets/text_editor_dialog.dart';
 import 'widgets/tool_bar_widgets/toolbar.dart';
 import 'widgets/canvas_error_banner.dart';
 import 'widgets/clear_canvas_dialog.dart';
+import 'package:freenotes_app/features/voice_notes/presentation/voice_canvas_page.dart';
 
 class CanvasPage extends ConsumerStatefulWidget {
   final String pageId;
@@ -30,6 +31,7 @@ class _CanvasPageState extends ConsumerState<CanvasPage>
   late final AnimationController _zoomAnimationController;
   Animation<Matrix4>? _zoomAnimation;
   bool _isLeaving = false;
+  bool _showVoiceNotes = false;
 
   Future<void> _saveAndLeave() async {
     if (_isLeaving) return;
@@ -210,6 +212,9 @@ class _CanvasPageState extends ConsumerState<CanvasPage>
               onZoomIn: _zoomIn,
               onZoomOut: _zoomOut,
               onFitPage: _fitPage,
+              onVoiceNotes: () {
+                setState(() => _showVoiceNotes = !_showVoiceNotes);
+              },
             ),
             if (canvasState.error != null)
               CanvasErrorBanner(
@@ -217,24 +222,40 @@ class _CanvasPageState extends ConsumerState<CanvasPage>
                 onDismiss: notifier.dismissError,
               ),
             Expanded(
-              child: CanvasArea(
-                state: canvasState,
-                notifier: notifier,
-                transformationController: _transformationController,
-                onViewportSizeChanged: _handleViewportSizeChanged,
-                onCanvasExpanded: _animateForCanvasExpansion,
-                selectedLanguage: _selectedLanguage,
-                onEditPendingText: () {
-                  showTextDialog(
-                    context: context,
-                    title: AppStrings.fixRecognizedText,
-                    initial: canvasState.pendingRecognizedText!,
-                    confirmLabel: AppStrings.update,
-                    onSubmit: notifier.updatePendingText,
-                  );
-                },
+              child: Stack(
+                children: [
+                  CanvasArea(
+                    state: canvasState,
+                    notifier: notifier,
+                    transformationController: _transformationController,
+                    onViewportSizeChanged: _handleViewportSizeChanged,
+                    onCanvasExpanded: _animateForCanvasExpansion,
+                    selectedLanguage: _selectedLanguage,
+                    onEditPendingText: () {
+                      showTextDialog(
+                        context: context,
+                        title: AppStrings.fixRecognizedText,
+                        initial: canvasState.pendingRecognizedText!,
+                        confirmLabel: AppStrings.update,
+                        onSubmit: notifier.updatePendingText,
+                      );
+                    },
+                  ),
+                  if (_showVoiceNotes)
+                    VoiceNotesOverlay(
+                      pageId: widget.pageId,
+                      onSaved: () {
+                        ref.invalidate(canvasProvider(widget.pageId));
+                      },
+                      onClose: () {
+                        if (mounted) {
+                          setState(() => _showVoiceNotes = false);
+                        }
+                      },
+                    ),
+                ],
               ),
-            )
+            ),
           ],
         ),
       ),
