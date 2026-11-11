@@ -29,7 +29,7 @@ final canvasProvider =
         CanvasNotifier.new);
 
 class CanvasNotifier extends FamilyNotifier<CanvasState, String> {
-  late final String pageId;
+  late String pageId;
   static const double _defaultTextWidth = TextBlockLayout.defaultWidth;
   static const double _defaultFontSize = 18;
   static const String _defaultFont = 'Roboto';

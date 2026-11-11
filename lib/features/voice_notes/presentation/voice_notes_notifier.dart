@@ -171,7 +171,10 @@ class VoiceNotesNotifier
     );
   }
 
-  Future<bool> confirmToTextBlocks(String pageId) async {
+  Future<bool> confirmToTextBlocks(
+    String pageId, {
+    required Offset Function(Offset viewportPosition) toCanvasPosition,
+  }) async {
     final readyBoxes = state.boxes
         .where(
           (box) => box.status == BoxStatus.ready && box.text.trim().isNotEmpty,
@@ -204,12 +207,13 @@ class VoiceNotesNotifier
       final box = readyBoxes[index];
       final text = box.text.trim();
       final now = DateTime.now();
+      final canvasPosition = toCanvasPosition(box.offset);
       final block = TextBlock(
         id: 'voice-$pageId-${box.id}',
         pageId: pageId,
         orderIndex: firstOrder + index,
-        x: box.offset.dx,
-        y: box.offset.dy,
+        x: canvasPosition.dx,
+        y: canvasPosition.dy,
         width: kTranscriptBoxWidth,
         height: measureTextHeight(
           text: text,

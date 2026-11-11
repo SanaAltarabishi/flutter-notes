@@ -9,11 +9,13 @@ class VoiceNotesOverlay extends ConsumerWidget {
   const VoiceNotesOverlay({
     super.key,
     required this.pageId,
+    required this.toCanvasPosition,
     required this.onClose,
     required this.onSaved,
   });
 
   final String pageId;
+  final Offset Function(Offset viewportPosition) toCanvasPosition;
   final VoidCallback onClose;
   final VoidCallback onSaved;
 
@@ -59,8 +61,10 @@ class VoiceNotesOverlay extends ConsumerWidget {
                       onPressed: state.isBusy
                           ? null
                           : () async {
-                              final saved =
-                                  await notifier.confirmToTextBlocks(pageId);
+                              final saved = await notifier.confirmToTextBlocks(
+                                pageId,
+                                toCanvasPosition: toCanvasPosition,
+                              );
                               if (saved) {
                                 onSaved();
                                 onClose();

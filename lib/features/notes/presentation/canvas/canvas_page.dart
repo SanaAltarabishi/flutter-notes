@@ -244,6 +244,7 @@ class _CanvasPageState extends ConsumerState<CanvasPage>
                   if (_showVoiceNotes)
                     VoiceNotesOverlay(
                       pageId: widget.pageId,
+                      toCanvasPosition: _transformationController.toScene,
                       onSaved: () {
                         ref.invalidate(canvasProvider(widget.pageId));
                       },
