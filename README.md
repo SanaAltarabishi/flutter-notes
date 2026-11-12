@@ -4,6 +4,14 @@ FreeNotes is a Flutter handwriting note-taking application. It organizes notes a
 
 The application is currently an active prototype. The main writing flow is implemented, while a few declared capabilities and cross-platform targets still need finishing work. This README documents the code as it exists today, not an aspirational product specification.
 
+## app demo: 
+
+
+
+https://github.com/user-attachments/assets/8fe49b03-d206-41ca-8de1-6a0e5cdfe49b
+
+
+
 ## What It Does
 
 - Creates, edits, colors, and deletes books.
